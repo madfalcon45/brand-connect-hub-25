@@ -95,10 +95,17 @@ const Signup = () => {
               <div className="space-y-5">
                 <h2 className="font-display text-2xl font-bold text-foreground">Create your account</h2>
                 <div className="space-y-4">
-                  <div>
-                    <Label>Full Name</Label>
-                    <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Your name" />
-                  </div>
+                  {role === "brand" ? (
+                    <div>
+                      <Label>Company Name</Label>
+                      <Input value={formData.companyName} onChange={(e) => setFormData({ ...formData, companyName: e.target.value })} placeholder="Your brand" />
+                    </div>
+                  ) : (
+                    <div>
+                      <Label>Full Name</Label>
+                      <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Your name" />
+                    </div>
+                  )}
                   <div>
                     <Label>Email</Label>
                     <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="you@example.com" />
