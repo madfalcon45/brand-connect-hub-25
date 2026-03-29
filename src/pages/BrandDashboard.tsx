@@ -27,6 +27,7 @@ type Campaign = {
   platforms: string[];
   requireApply: boolean;
   activeCreators: { name: string; platform: string; followers: string; clicks: number; sales: number; earnings: number }[];
+  images?: string[];
 };
 
 type Application = {
@@ -60,6 +61,7 @@ const BrandDashboard = () => {
   const [showCreatorFilters, setShowCreatorFilters] = useState(false);
   const [creatorFilterPlatform, setCreatorFilterPlatform] = useState<string[]>([]);
   const [creatorFilterMinFollowers, setCreatorFilterMinFollowers] = useState(0);
+  const [invitedCreators, setInvitedCreators] = useState<string[]>([]);
 
   // Settings state from signup
   const [settingsName, setSettingsName] = useState(() => localStorage.getItem("allcall_brand_name") || "");
@@ -77,13 +79,16 @@ const BrandDashboard = () => {
     payMethod: "hybrid" as "commission" | "flat" | "hybrid",
     commissionRate: "5", flatRate: "5", flatPer: "100",
     requireApply: true, paidProduct: false, productType: "physical" as "physical" | "digital",
-    photo: null as File | null,
+    photos: [] as string[],
     platforms: [] as string[],
     filterFollowers: false, minFollowers: 1000,
-    followerFilterType: [] as string[], // multiple choice: "total", "TikTok", "Instagram", "YouTube"
+    followerFilterType: [] as string[],
     filterCategories: [] as string[],
     signOnPay: "",
   });
+
+  // Invite confirmation
+  const [inviteConfirmation, setInviteConfirmation] = useState<string | null>(null);
 
   // Recommended creators (mock AI)
   const allCreators = [
@@ -137,7 +142,6 @@ const BrandDashboard = () => {
     setApplications((prev) => {
       const app = prev.find((a) => a.id === appId);
       if (!app) return prev;
-      // Add creator to campaign
       setCampaigns((cPrev) => cPrev.map((c) => {
         if (c.id === app.campaignId) {
           return {
@@ -158,13 +162,26 @@ const BrandDashboard = () => {
     setApplications((prev) => prev.map((a) => a.id === appId ? { ...a, status: "denied" as const } : a));
   };
 
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    const remaining = 3 - campaignForm.photos.length;
+    const toAdd = Array.from(files).slice(0, remaining);
+    const newUrls = toAdd.map((f) => URL.createObjectURL(f));
+    setCampaignForm({ ...campaignForm, photos: [...campaignForm.photos, ...newUrls] });
+  };
+
+  const removePhoto = (index: number) => {
+    setCampaignForm({ ...campaignForm, photos: campaignForm.photos.filter((_, i) => i !== index) });
+  };
+
   const handleLaunchCampaign = () => {
     const newCampaign: Campaign = {
       id: Date.now(),
       name: campaignForm.name || "Untitled Campaign",
       category: campaignForm.category || "General",
       status: "active",
-      signOnPay: Number(campaignForm.signOnPay) || 0,
+      signOnPay: campaignForm.requireApply ? (Number(campaignForm.signOnPay) || 0) : 0,
       description: campaignForm.description,
       link: campaignForm.link,
       payMethod: campaignForm.payMethod === "hybrid"
@@ -175,23 +192,29 @@ const BrandDashboard = () => {
       platforms: campaignForm.platforms,
       requireApply: campaignForm.requireApply,
       activeCreators: [],
+      images: campaignForm.photos,
     };
     setCampaigns((prev) => [...prev, newCampaign]);
     setLaunchedCampaignName(newCampaign.name);
     setShowLaunchSuccess(true);
-    // Reset form
     setCampaignForm({
       name: "", category: "", description: "", link: "", notes: "",
       creatorCode: true, discount: "10",
       payMethod: "hybrid",
       commissionRate: "5", flatRate: "5", flatPer: "100",
       requireApply: true, paidProduct: false, productType: "physical",
-      photo: null, platforms: [],
+      photos: [], platforms: [],
       filterFollowers: false, minFollowers: 1000,
       followerFilterType: [],
       filterCategories: [],
       signOnPay: "",
     });
+  };
+
+  const handleInviteCreator = (name: string) => {
+    setInvitedCreators((prev) => [...prev, name]);
+    setInviteConfirmation(name);
+    setTimeout(() => setInviteConfirmation(null), 3000);
   };
 
   const handleSaveSettings = () => {
@@ -208,6 +231,16 @@ const BrandDashboard = () => {
       document.documentElement.classList.remove("dark");
     }
   }, [darkMode]);
+
+  // Example campaigns for creator view
+  const exampleCreatorCampaigns = [
+    { name: "Hydra Glow Moisturizer", brand: "GlowSkin Co.", category: "Beauty", platform: "TikTok", payMethod: "Hybrid: 6% + $8/100 clicks", signOnPay: 30, isPro: true, requireApply: true },
+    { name: "ProFit Protein Shake", brand: "FitLife Labs", category: "Health", platform: "Instagram", payMethod: "Commission: 10%", signOnPay: 0, isPro: false, requireApply: false },
+    { name: "AirPod Max Clone", brand: "TechBuddy", category: "Tech", platform: "YouTube", payMethod: "Flat: $15/100 clicks", signOnPay: 50, isPro: true, requireApply: true },
+    { name: "Cozy Candle Set", brand: "HomeNest", category: "Home", platform: "TikTok", payMethod: "Commission: 5%", signOnPay: 0, isPro: false, requireApply: false },
+    { name: "Bamboo Water Bottle", brand: "EcoLife", category: "Health", platform: "Instagram", payMethod: "Hybrid: 4% + $5/100 clicks", signOnPay: 15, isPro: true, requireApply: true },
+    { name: "Wireless Charger Pad", brand: "ChargePro", category: "Tech", platform: "YouTube", payMethod: "Flat: $12/100 clicks", signOnPay: 0, isPro: false, requireApply: true },
+  ];
 
   return (
     <div className="min-h-screen bg-muted/30 flex">
@@ -248,6 +281,19 @@ const BrandDashboard = () => {
 
       {/* Main content */}
       <main className="flex-1 p-8 overflow-y-auto">
+        {/* Invite confirmation toast */}
+        {inviteConfirmation && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="fixed top-6 right-6 z-50 bg-primary text-primary-foreground px-5 py-3 rounded-xl shadow-lg flex items-center gap-2"
+          >
+            <Check className="w-4 h-4" />
+            <span className="text-sm font-medium">Invitation sent to {inviteConfirmation}!</span>
+          </motion.div>
+        )}
+
         {tab === "dashboard" && (
           <div className="space-y-8">
             <h1 className="font-display text-3xl font-bold text-foreground">Dashboard</h1>
@@ -411,24 +457,67 @@ const BrandDashboard = () => {
             </div>
 
             <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-6">
-              <h2 className="font-display text-lg font-semibold text-foreground">Campaign Image</h2>
-              <div className="flex gap-4">
-                <button onClick={() => setCampaignForm({ ...campaignForm, photo: null })} className={`p-4 rounded-xl border-2 text-sm ${!campaignForm.photo ? "border-primary bg-primary/5" : "border-border"}`}>No Photo</button>
-                <label className={`p-4 rounded-xl border-2 text-sm cursor-pointer ${campaignForm.photo ? "border-primary bg-primary/5" : "border-border"}`}>
-                  Upload Photo
-                  <p className="text-xs text-muted-foreground mt-1">Logo or product photo</p>
-                  <input type="file" className="hidden" accept="image/*" onChange={(e) => setCampaignForm({ ...campaignForm, photo: e.target.files?.[0] || null })} />
-                </label>
+              <h2 className="font-display text-lg font-semibold text-foreground">Campaign Images</h2>
+              <p className="text-xs text-muted-foreground">Upload up to 3 images (logo, product photos, etc.)</p>
+              <div className="flex gap-4 flex-wrap">
+                {campaignForm.photos.map((url, i) => (
+                  <div key={i} className="relative w-24 h-24 rounded-xl border border-border overflow-hidden group">
+                    <img src={url} alt={`Upload ${i + 1}`} className="w-full h-full object-cover" />
+                    <button
+                      onClick={() => removePhoto(i)}
+                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <XIcon className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+                {campaignForm.photos.length < 3 && (
+                  <label className="w-24 h-24 rounded-xl border-2 border-dashed border-border hover:border-primary/50 flex flex-col items-center justify-center cursor-pointer transition-colors">
+                    <Plus className="w-5 h-5 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground mt-1">Upload</span>
+                    <input type="file" className="hidden" accept="image/*" multiple onChange={handlePhotoUpload} />
+                  </label>
+                )}
               </div>
             </div>
 
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-6">
+            <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-4">
               <div className="flex items-center gap-2">
-                <h2 className="font-display text-lg font-semibold text-foreground">Sign-On Pay</h2>
-                <Tooltip><TooltipTrigger><Info className="w-4 h-4 text-muted-foreground" /></TooltipTrigger><TooltipContent>Optional bonus paid to creators when their application is approved</TooltipContent></Tooltip>
+                <h2 className="font-display text-lg font-semibold text-foreground">Application Settings</h2>
+                <Tooltip><TooltipTrigger><Info className="w-4 h-4 text-muted-foreground" /></TooltipTrigger><TooltipContent>Choose whether creators need your approval or can join instantly</TooltipContent></Tooltip>
               </div>
-              <Input value={campaignForm.signOnPay} onChange={(e) => setCampaignForm({ ...campaignForm, signOnPay: e.target.value })} placeholder="$0" className="max-w-[120px]" />
+              <div className="flex gap-3">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button onClick={() => setCampaignForm({ ...campaignForm, requireApply: true })} className={`px-4 py-2 rounded-lg border text-sm ${campaignForm.requireApply ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}>
+                      Creators must apply
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Creators submit an application and you review & accept or deny each one</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button onClick={() => setCampaignForm({ ...campaignForm, requireApply: false, signOnPay: "" })} className={`px-4 py-2 rounded-lg border text-sm ${!campaignForm.requireApply ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}>
+                      Instant join
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Creators get immediate access to affiliate links and codes without approval</TooltipContent>
+                </Tooltip>
+              </div>
             </div>
+
+            {campaignForm.requireApply && (
+              <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-6">
+                <div className="flex items-center gap-2">
+                  <h2 className="font-display text-lg font-semibold text-foreground">Sign-On Pay</h2>
+                  <Tooltip><TooltipTrigger><Info className="w-4 h-4 text-muted-foreground" /></TooltipTrigger><TooltipContent>Optional bonus paid to creators when their application is approved. Only available with creator approval mode.</TooltipContent></Tooltip>
+                </div>
+                <div className="flex items-center gap-1 max-w-[140px]">
+                  <span className="text-sm font-medium text-foreground">$</span>
+                  <Input value={campaignForm.signOnPay} onChange={(e) => setCampaignForm({ ...campaignForm, signOnPay: e.target.value })} placeholder="0" />
+                </div>
+              </div>
+            )}
 
             <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-6">
               <div className="flex items-center gap-2">
@@ -440,7 +529,11 @@ const BrandDashboard = () => {
                 <span className="text-sm text-foreground">Enable creator discount codes (recommended for accurate tracking)</span>
               </label>
               {campaignForm.creatorCode && (
-                <div><label className="text-sm font-medium text-foreground">Discount %</label><Input value={campaignForm.discount} onChange={(e) => setCampaignForm({ ...campaignForm, discount: e.target.value })} placeholder="10" className="max-w-[100px]" /></div>
+                <div>
+                  <label className="text-sm font-medium text-foreground">Discount %</label>
+                  <Input value={campaignForm.discount} onChange={(e) => setCampaignForm({ ...campaignForm, discount: e.target.value })} placeholder="10" className="max-w-[100px]" />
+                  <p className="text-xs text-muted-foreground mt-2">Creators will receive a unique code like <span className="font-mono font-semibold text-primary">dylanfinds{campaignForm.discount || "10"}</span> or <span className="font-mono font-semibold text-primary">sarah{campaignForm.discount || "10"}</span></p>
+                </div>
               )}
             </div>
 
@@ -554,31 +647,6 @@ const BrandDashboard = () => {
 
             <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-4">
               <div className="flex items-center gap-2">
-                <h2 className="font-display text-lg font-semibold text-foreground">Application Settings</h2>
-                <Tooltip><TooltipTrigger><Info className="w-4 h-4 text-muted-foreground" /></TooltipTrigger><TooltipContent>Choose whether creators need your approval or can join instantly</TooltipContent></Tooltip>
-              </div>
-              <div className="flex gap-3">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button onClick={() => setCampaignForm({ ...campaignForm, requireApply: true })} className={`px-4 py-2 rounded-lg border text-sm ${campaignForm.requireApply ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}>
-                      Creators must apply
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>Creators submit an application and you review & accept or deny each one</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button onClick={() => setCampaignForm({ ...campaignForm, requireApply: false })} className={`px-4 py-2 rounded-lg border text-sm ${!campaignForm.requireApply ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}>
-                      Instant join
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>Creators get immediate access to affiliate links and codes without approval</TooltipContent>
-                </Tooltip>
-              </div>
-            </div>
-
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-4">
-              <div className="flex items-center gap-2">
                 <h2 className="font-display text-lg font-semibold text-foreground">Paid Product</h2>
                 <Tooltip><TooltipTrigger><Info className="w-4 h-4 text-muted-foreground" /></TooltipTrigger><TooltipContent>Enable if you need to ship or deliver a product to the creator before they promote it</TooltipContent></Tooltip>
               </div>
@@ -613,21 +681,28 @@ const BrandDashboard = () => {
         )}
 
         {tab === "new-campaign" && showLaunchSuccess && (
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="max-w-md mx-auto text-center space-y-6 mt-16">
-            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-              <Check className="w-10 h-10 text-primary" />
-            </div>
-            <h1 className="font-display text-3xl font-bold text-foreground">Campaign Launched!</h1>
-            <p className="text-muted-foreground">"{launchedCampaignName}" is now live and visible to creators.</p>
-            <div className="flex gap-3 justify-center">
-              <Button variant="hero" onClick={() => { setTab("creator-view"); setShowLaunchSuccess(false); }}>
-                <Eye className="w-4 h-4 mr-2" /> View as Creator
-              </Button>
-              <Button variant="outline" onClick={() => { setTab("campaigns"); setShowLaunchSuccess(false); }}>
-                Go to Campaigns
-              </Button>
-            </div>
-          </motion.div>
+          <div className="min-h-[60vh] flex items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="max-w-md w-full text-center space-y-6 p-10 rounded-3xl"
+              style={{ background: 'linear-gradient(135deg, hsl(152, 69%, 41%) 0%, hsl(160, 60%, 35%) 30%, hsl(145, 40%, 50%) 60%, hsl(140, 30%, 85%) 100%)' }}
+            >
+              <div className="w-20 h-20 rounded-full bg-primary-foreground/20 flex items-center justify-center mx-auto">
+                <Check className="w-10 h-10 text-primary-foreground" />
+              </div>
+              <h1 className="font-display text-3xl font-bold text-primary-foreground">Campaign Launched!</h1>
+              <p className="text-primary-foreground/80">"{launchedCampaignName}" is now live and visible to creators.</p>
+              <div className="flex gap-3 justify-center">
+                <Button variant="secondary" onClick={() => { setTab("creator-view"); setShowLaunchSuccess(false); }}>
+                  <Eye className="w-4 h-4 mr-2" /> View as Creator
+                </Button>
+                <Button variant="outline" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10" onClick={() => { setTab("campaigns"); setShowLaunchSuccess(false); }}>
+                  Go to Campaigns
+                </Button>
+              </div>
+            </motion.div>
+          </div>
         )}
 
         {tab === "applications" && (
@@ -714,7 +789,15 @@ const BrandDashboard = () => {
                       <p className="text-sm text-muted-foreground">{cr.platform} · {cr.followers} · {cr.category}</p>
                     </div>
                   </div>
-                  <Button variant="hero" size="sm"><Send className="w-4 h-4 mr-1" /> Invite</Button>
+                  {invitedCreators.includes(cr.name) ? (
+                    <Button variant="secondary" size="sm" disabled>
+                      <Check className="w-4 h-4 mr-1" /> Invited
+                    </Button>
+                  ) : (
+                    <Button variant="hero" size="sm" onClick={() => handleInviteCreator(cr.name)}>
+                      <Send className="w-4 h-4 mr-1" /> Invite
+                    </Button>
+                  )}
                 </div>
               ))}
               {filteredCreators.length === 0 && (
@@ -769,29 +852,47 @@ const BrandDashboard = () => {
         {tab === "creator-view" && (
           <div className="space-y-6">
             <h1 className="font-display text-3xl font-bold text-foreground">Creator View Preview</h1>
-            <p className="text-sm text-muted-foreground">See your campaigns from a creator's perspective.</p>
-            {campaigns.filter((c) => c.status === "active").length === 0 ? (
-              <p className="text-center text-muted-foreground py-12">No active campaigns to preview.</p>
-            ) : (
-              <div className="space-y-4">
-                {campaigns.filter((c) => c.status === "active").map((c) => (
-                  <div key={c.id} className="p-5 rounded-2xl bg-card border border-border shadow-card">
-                    <div className="flex items-center gap-4 mb-3">
-                      <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-xl">{c.name[0]}</div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-display font-bold text-foreground">{c.name}</h3>
-                          {plan === "pro" && <Badge className="bg-primary/10 text-primary border-0 text-xs"><Star className="w-3 h-3 mr-1" /> Top Brand</Badge>}
-                          {c.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0 text-xs">Sign-On ${c.signOnPay}</Badge>}
-                        </div>
-                        <p className="text-sm text-muted-foreground">{c.category} · {c.payMethod}</p>
+            <p className="text-sm text-muted-foreground">See your campaigns from a creator's perspective, alongside other example campaigns.</p>
+
+            <div className="space-y-4">
+              {/* User's own campaigns */}
+              {campaigns.filter((c) => c.status === "active").map((c) => (
+                <div key={c.id} className="p-5 rounded-2xl bg-card border border-border shadow-card">
+                  <div className="flex items-center gap-4 mb-3">
+                    <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-xl">{c.name[0]}</div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-display font-bold text-foreground">{c.name}</h3>
+                        <Badge className="bg-accent text-accent-foreground border-0 text-xs">Your Campaign</Badge>
+                        {plan === "pro" && <Badge className="bg-primary/10 text-primary border-0 text-xs"><Star className="w-3 h-3 mr-1" /> Top Brand</Badge>}
+                        {c.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0 text-xs">Sign-On ${c.signOnPay}</Badge>}
                       </div>
+                      <p className="text-sm text-muted-foreground">{settingsName || "Your Brand"} · {c.category} · {c.payMethod}</p>
                     </div>
-                    <Button variant="hero" size="sm">{c.requireApply ? "Apply" : "Join Campaign"}</Button>
                   </div>
-                ))}
-              </div>
-            )}
+                  <Button variant="hero" size="sm">{c.requireApply ? "Apply" : "Join Campaign"}</Button>
+                </div>
+              ))}
+
+              {/* Example campaigns */}
+              {exampleCreatorCampaigns.map((c, i) => (
+                <div key={i} className="p-5 rounded-2xl bg-card border border-border shadow-card">
+                  <div className="flex items-center gap-4 mb-3">
+                    <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-xl">{c.brand[0]}</div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-display font-bold text-foreground">{c.name}</h3>
+                        {c.isPro && <Badge className="bg-primary/10 text-primary border-0 text-xs"><Star className="w-3 h-3 mr-1" /> Top Brand</Badge>}
+                        {c.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0 text-xs">Sign-On ${c.signOnPay}</Badge>}
+                      </div>
+                      <p className="text-sm text-muted-foreground">{c.brand} · {c.category} · {c.platform}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{c.payMethod}</p>
+                    </div>
+                  </div>
+                  <Button variant="hero" size="sm">{c.requireApply ? "Apply" : "Join Campaign"}</Button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -844,7 +945,7 @@ const BrandDashboard = () => {
 
             <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-4">
               <h2 className="font-display text-lg font-semibold text-foreground">Subscription</h2>
-              <p className="text-sm text-muted-foreground">Current plan: <span className="font-semibold text-foreground">{plan === "pro" ? "Pro ($149/mo)" : "Basic ($39/mo)"}</span></p>
+              <p className="text-sm text-muted-foreground">Current plan: <span className="font-semibold text-foreground">{plan === "pro" ? "Pro ($49/mo)" : "Basic (Free)"}</span></p>
               {plan !== "pro" && <Link to="/pricing"><Button variant="outline" size="sm">Upgrade to Pro</Button></Link>}
             </div>
 
