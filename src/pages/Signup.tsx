@@ -7,6 +7,15 @@ import { Label } from "@/components/ui/label";
 import { motion } from "framer-motion";
 import { Building2, Palette, ArrowRight, ArrowLeft, Check, X, AlertCircle } from "lucide-react";
 
+const countries = [
+  "United States", "Canada", "United Kingdom", "Australia", "Germany", "France",
+  "Spain", "Italy", "Netherlands", "Sweden", "Norway", "Denmark", "Finland",
+  "Brazil", "Mexico", "Argentina", "Colombia", "India", "Japan", "South Korea",
+  "China", "Singapore", "Philippines", "Nigeria", "South Africa", "Kenya",
+  "Egypt", "UAE", "Saudi Arabia", "Israel", "Turkey", "Poland", "Ireland",
+  "New Zealand", "Portugal", "Belgium", "Switzerland", "Austria", "Other",
+];
+
 const brandCategories = [
   "Fashion & Apparel", "Beauty & Skincare", "Health & Wellness", "Food & Beverage",
   "Tech & Electronics", "Home & Living", "Sports & Fitness", "Travel & Hospitality",
@@ -66,7 +75,7 @@ const Signup = () => {
       if (role === "creator" && !formData.name.trim()) errs.push("Full Name is required");
       if (!formData.email.trim()) errs.push("Email is required");
       if (!formData.password.trim()) errs.push("Password is required");
-      if (!formData.country.trim()) errs.push("Country is required");
+      if (!formData.country) errs.push("Country is required");
     }
     if (step === 2) {
       if (selectedCategories.length === 0) errs.push("Select at least one category");
@@ -99,7 +108,6 @@ const Signup = () => {
     setErrors([]);
     if (step < totalSteps) setStep(step + 1);
     else {
-      // Save bank info and plan to localStorage for settings
       localStorage.setItem("allcall_bank", JSON.stringify(bankInfo));
       if (selectedPlan) localStorage.setItem("allcall_plan", selectedPlan);
       if (role === "brand") localStorage.setItem("allcall_brand_name", formData.companyName);
@@ -188,7 +196,16 @@ const Signup = () => {
                   </div>
                   <div>
                     <Label>Country</Label>
-                    <Input value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} placeholder="United States" />
+                    <select
+                      className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                      value={formData.country}
+                      onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                    >
+                      <option value="">Select your country</option>
+                      {countries.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               </div>
@@ -282,8 +299,8 @@ const Signup = () => {
                 <h2 className="font-display text-2xl font-bold text-foreground text-center">Choose Your Plan</h2>
                 <div className="grid grid-cols-2 gap-4">
                   {[
-                    { key: "basic", name: "Basic", price: "$39", period: "/month" },
-                    { key: "pro", name: "Pro", price: "$149", period: "/month" },
+                    { key: "basic", name: "Basic", price: "Free", period: "" },
+                    { key: "pro", name: "Pro", price: "$49", period: "/month" },
                   ].map((plan) => (
                     <button
                       key={plan.key}
@@ -295,12 +312,11 @@ const Signup = () => {
                       <p className="font-display font-bold text-foreground text-lg">{plan.name}</p>
                       <div className="flex items-baseline gap-1 mb-4">
                         <span className="font-display text-2xl font-bold text-primary">{plan.price}</span>
-                        <span className="text-sm text-muted-foreground">{plan.period}</span>
+                        {plan.period && <span className="text-sm text-muted-foreground">{plan.period}</span>}
                       </div>
                     </button>
                   ))}
                 </div>
-                {/* Feature comparison */}
                 <div className="bg-muted/30 rounded-xl p-4 space-y-2">
                   <p className="text-sm font-semibold text-foreground mb-3">Feature Comparison</p>
                   <div className="grid grid-cols-[1fr_60px_60px] gap-1 text-xs">

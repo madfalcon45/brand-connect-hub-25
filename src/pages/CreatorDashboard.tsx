@@ -33,12 +33,18 @@ const CreatorDashboard = () => {
   const [settingsPassword, setSettingsPassword] = useState({ current: "", new: "", confirm: "" });
   const savedAddress = settingsCountry ? `123 Creator St, ${settingsCountry}` : "";
 
-  // Mock campaigns (would come from API)
+  // Mock campaigns
   const availableCampaigns = [
     { id: 1, brand: "GlowBeauty", product: "Summer Glow Serum", category: "Beauty", platform: "TikTok", payMethod: "Hybrid: 5% + $5/100 clicks", signOnPay: 25, isPro: true, topPick: true, needsProduct: true, requireApply: true },
     { id: 2, brand: "FitPro", product: "ProFit Blender", category: "Health", platform: "Instagram", payMethod: "Commission: 8%", signOnPay: 0, isPro: false, topPick: true, needsProduct: false, requireApply: false },
     { id: 3, brand: "TechBite", product: "CodeMaster Keyboard", category: "Tech", platform: "YouTube", payMethod: "Flat: $10/100 clicks", signOnPay: 50, isPro: true, topPick: false, needsProduct: true, requireApply: true },
     { id: 4, brand: "HomeNest", product: "Smart Diffuser", category: "Home", platform: "TikTok", payMethod: "Commission: 6%", signOnPay: 0, isPro: false, topPick: false, needsProduct: false, requireApply: false },
+    { id: 5, brand: "EcoLife", product: "Bamboo Water Bottle", category: "Health", platform: "Instagram", payMethod: "Hybrid: 4% + $5/100 clicks", signOnPay: 15, isPro: true, topPick: true, needsProduct: true, requireApply: true },
+    { id: 6, brand: "ChargePro", product: "Wireless Charger Pad", category: "Tech", platform: "YouTube", payMethod: "Flat: $12/100 clicks", signOnPay: 0, isPro: false, topPick: false, needsProduct: false, requireApply: true },
+    { id: 7, brand: "StyleVault", product: "Oversized Vintage Tee", category: "Fashion", platform: "TikTok", payMethod: "Commission: 12%", signOnPay: 20, isPro: true, topPick: true, needsProduct: true, requireApply: true },
+    { id: 8, brand: "PetPals", product: "Organic Dog Treats", category: "Home", platform: "Instagram", payMethod: "Hybrid: 7% + $3/100 clicks", signOnPay: 0, isPro: false, topPick: false, needsProduct: true, requireApply: false },
+    { id: 9, brand: "BrewCraft", product: "Cold Brew Maker Kit", category: "Food", platform: "YouTube", payMethod: "Commission: 9%", signOnPay: 30, isPro: true, topPick: false, needsProduct: true, requireApply: true },
+    { id: 10, brand: "ZenSkin", product: "Retinol Night Cream", category: "Beauty", platform: "TikTok", payMethod: "Flat: $8/100 clicks", signOnPay: 0, isPro: false, topPick: true, needsProduct: false, requireApply: false },
   ];
 
   const sidebarItems: { key: Tab; label: string; icon: any }[] = [
@@ -64,12 +70,13 @@ const CreatorDashboard = () => {
     if (campaign.requireApply) {
       setAppliedIds([...appliedIds, campaign.id]);
     } else {
+      const firstName = settingsName.split(" ")[0]?.toLowerCase() || "creator";
       const newJoined = {
         id: campaign.id,
         brand: campaign.brand,
         product: campaign.product,
         link: `https://allcall.link/${settingsName.toLowerCase().replace(/\s/g, "")}/${campaign.brand.toLowerCase()}`,
-        code: `${settingsName.split(" ")[0]?.toUpperCase() || "CODE"}${Math.floor(Math.random() * 100)}`,
+        code: `${firstName}${Math.floor(Math.random() * 100)}`,
         earnings: 0,
       };
       setJoinedCampaigns([...joinedCampaigns, newJoined]);
