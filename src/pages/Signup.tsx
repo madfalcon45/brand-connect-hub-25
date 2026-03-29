@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { motion } from "framer-motion";
-import { Building2, Palette, ArrowRight, ArrowLeft } from "lucide-react";
+import { Building2, Palette, ArrowRight, ArrowLeft, Check, X, AlertCircle } from "lucide-react";
 
 const brandCategories = [
   "Fashion & Apparel", "Beauty & Skincare", "Health & Wellness", "Food & Beverage",
@@ -19,6 +19,21 @@ const creatorCategories = [
   "Education & How-to", "Finance & Business", "DIY & Crafts", "Parenting", "General / Any",
 ];
 
+const planFeatures = [
+  { text: "3 active campaigns", basic: true, pro: true },
+  { text: "Customizable creator intake process", basic: true, pro: true },
+  { text: "Analytics dashboard", basic: true, pro: true },
+  { text: "Custom affiliate links & codes", basic: true, pro: true },
+  { text: "Creator view", basic: true, pro: true },
+  { text: "Unlimited active campaigns", basic: false, pro: true },
+  { text: "Creator search, recommendations & invitations", basic: false, pro: true },
+  { text: "Eligible creators filtering", basic: false, pro: true },
+  { text: "Priority campaign placements", basic: false, pro: true },
+  { text: "Priority support", basic: false, pro: true },
+  { text: "Extended creator attribution window", basic: false, pro: true },
+  { text: '"Top brand" badge visible to creators', basic: false, pro: true },
+];
+
 const Signup = () => {
   const [params] = useSearchParams();
   const navigate = useNavigate();
@@ -29,6 +44,9 @@ const Signup = () => {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [formData, setFormData] = useState({ name: "", email: "", password: "", companyName: "", country: "" });
   const [socials, setSocials] = useState([{ platform: "", url: "" }]);
+  const [bankInfo, setBankInfo] = useState({ bankName: "", accountNumber: "", routingNumber: "" });
+  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [errors, setErrors] = useState<string[]>([]);
 
   const totalSteps = role === "brand" ? 4 : 4;
   const progress = (step / totalSteps) * 100;
@@ -41,10 +59,53 @@ const Signup = () => {
 
   const addSocial = () => setSocials([...socials, { platform: "", url: "" }]);
 
+  const validate = (): string[] => {
+    const errs: string[] = [];
+    if (step === 1) {
+      if (role === "brand" && !formData.companyName.trim()) errs.push("Company Name is required");
+      if (role === "creator" && !formData.name.trim()) errs.push("Full Name is required");
+      if (!formData.email.trim()) errs.push("Email is required");
+      if (!formData.password.trim()) errs.push("Password is required");
+      if (!formData.country.trim()) errs.push("Country is required");
+    }
+    if (step === 2) {
+      if (selectedCategories.length === 0) errs.push("Select at least one category");
+    }
+    if (step === 3 && role === "creator") {
+      if (socials.every((s) => !s.platform || !s.url.trim())) errs.push("Add at least one social account");
+    }
+    if (step === 3 && role === "brand") {
+      if (!bankInfo.bankName.trim()) errs.push("Bank Name is required");
+      if (!bankInfo.accountNumber.trim()) errs.push("Account Number is required");
+      if (!bankInfo.routingNumber.trim()) errs.push("Routing Number is required");
+    }
+    if (step === 4 && role === "brand") {
+      if (!selectedPlan) errs.push("Choose a plan before continuing");
+    }
+    if (step === 4 && role === "creator") {
+      if (!bankInfo.bankName.trim()) errs.push("Bank Name is required");
+      if (!bankInfo.accountNumber.trim()) errs.push("Account Number is required");
+      if (!bankInfo.routingNumber.trim()) errs.push("Routing Number is required");
+    }
+    return errs;
+  };
+
   const handleNext = () => {
+    const errs = validate();
+    if (errs.length > 0) {
+      setErrors(errs);
+      return;
+    }
+    setErrors([]);
     if (step < totalSteps) setStep(step + 1);
     else {
-      // Complete signup -> redirect to dashboard
+      // Save bank info and plan to localStorage for settings
+      localStorage.setItem("allcall_bank", JSON.stringify(bankInfo));
+      if (selectedPlan) localStorage.setItem("allcall_plan", selectedPlan);
+      if (role === "brand") localStorage.setItem("allcall_brand_name", formData.companyName);
+      if (role === "creator") localStorage.setItem("allcall_creator_name", formData.name);
+      localStorage.setItem("allcall_email", formData.email);
+      localStorage.setItem("allcall_country", formData.country);
       navigate(role === "brand" ? "/brand/dashboard" : "/creator/dashboard");
     }
   };
@@ -64,6 +125,17 @@ const Signup = () => {
             transition={{ duration: 0.3 }}
             className="bg-card border border-border rounded-2xl p-8 shadow-card"
           >
+            {errors.length > 0 && (
+              <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/30 flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  {errors.map((e) => (
+                    <p key={e} className="text-sm text-destructive">{e}</p>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {step === 0 && (
               <div className="space-y-6">
                 <div className="text-center">
@@ -72,7 +144,7 @@ const Signup = () => {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <button
-                    onClick={() => { setRole("brand"); setStep(1); }}
+                    onClick={() => { setRole("brand"); setStep(1); setErrors([]); }}
                     className="p-6 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all text-center group"
                   >
                     <Building2 className="w-10 h-10 text-primary mx-auto mb-3" />
@@ -80,7 +152,7 @@ const Signup = () => {
                     <p className="text-xs text-muted-foreground mt-1">Launch campaigns & find creators</p>
                   </button>
                   <button
-                    onClick={() => { setRole("creator"); setStep(1); }}
+                    onClick={() => { setRole("creator"); setStep(1); setErrors([]); }}
                     className="p-6 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all text-center group"
                   >
                     <Palette className="w-10 h-10 text-primary mx-auto mb-3" />
@@ -191,33 +263,61 @@ const Signup = () => {
                 <div className="space-y-4">
                   <div>
                     <Label>Bank Name</Label>
-                    <Input placeholder="Your bank" />
+                    <Input value={bankInfo.bankName} onChange={(e) => setBankInfo({ ...bankInfo, bankName: e.target.value })} placeholder="Your bank" />
                   </div>
                   <div>
                     <Label>Account Number</Label>
-                    <Input placeholder="••••••••" />
+                    <Input value={bankInfo.accountNumber} onChange={(e) => setBankInfo({ ...bankInfo, accountNumber: e.target.value })} placeholder="••••••••" />
                   </div>
                   <div>
                     <Label>Routing Number</Label>
-                    <Input placeholder="••••••••" />
+                    <Input value={bankInfo.routingNumber} onChange={(e) => setBankInfo({ ...bankInfo, routingNumber: e.target.value })} placeholder="••••••••" />
                   </div>
                 </div>
               </div>
             )}
 
             {step === 4 && role === "brand" && (
-              <div className="space-y-5 text-center">
-                <h2 className="font-display text-2xl font-bold text-foreground">Choose Your Plan</h2>
+              <div className="space-y-5">
+                <h2 className="font-display text-2xl font-bold text-foreground text-center">Choose Your Plan</h2>
                 <div className="grid grid-cols-2 gap-4">
                   {[
-                    { name: "Basic", price: "$39/mo", desc: "3 campaigns, analytics, affiliate links" },
-                    { name: "Pro", price: "$149/mo", desc: "Unlimited campaigns, AI recommendations, priority" },
+                    { key: "basic", name: "Basic", price: "$39", period: "/month" },
+                    { key: "pro", name: "Pro", price: "$149", period: "/month" },
                   ].map((plan) => (
-                    <button key={plan.name} className="p-5 rounded-xl border-2 border-border hover:border-primary transition-all text-left">
+                    <button
+                      key={plan.key}
+                      onClick={() => setSelectedPlan(plan.key)}
+                      className={`p-5 rounded-xl border-2 transition-all text-left ${
+                        selectedPlan === plan.key ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                      }`}
+                    >
                       <p className="font-display font-bold text-foreground text-lg">{plan.name}</p>
-                      <p className="font-display text-2xl font-bold text-primary">{plan.price}</p>
-                      <p className="text-xs text-muted-foreground mt-2">{plan.desc}</p>
+                      <div className="flex items-baseline gap-1 mb-4">
+                        <span className="font-display text-2xl font-bold text-primary">{plan.price}</span>
+                        <span className="text-sm text-muted-foreground">{plan.period}</span>
+                      </div>
                     </button>
+                  ))}
+                </div>
+                {/* Feature comparison */}
+                <div className="bg-muted/30 rounded-xl p-4 space-y-2">
+                  <p className="text-sm font-semibold text-foreground mb-3">Feature Comparison</p>
+                  <div className="grid grid-cols-[1fr_60px_60px] gap-1 text-xs">
+                    <div />
+                    <div className="text-center font-semibold text-foreground">Basic</div>
+                    <div className="text-center font-semibold text-primary">Pro</div>
+                  </div>
+                  {planFeatures.map((f) => (
+                    <div key={f.text} className="grid grid-cols-[1fr_60px_60px] gap-1 items-center text-xs py-1 border-t border-border/50">
+                      <span className="text-foreground">{f.text}</span>
+                      <div className="flex justify-center">
+                        {f.basic ? <Check className="w-4 h-4 text-primary" /> : <X className="w-4 h-4 text-muted-foreground/40" />}
+                      </div>
+                      <div className="flex justify-center">
+                        {f.pro ? <Check className="w-4 h-4 text-primary" /> : <X className="w-4 h-4 text-muted-foreground/40" />}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -230,15 +330,15 @@ const Signup = () => {
                 <div className="space-y-4">
                   <div>
                     <Label>Bank Name</Label>
-                    <Input placeholder="Your bank" />
+                    <Input value={bankInfo.bankName} onChange={(e) => setBankInfo({ ...bankInfo, bankName: e.target.value })} placeholder="Your bank" />
                   </div>
                   <div>
                     <Label>Account Number</Label>
-                    <Input placeholder="••••••••" />
+                    <Input value={bankInfo.accountNumber} onChange={(e) => setBankInfo({ ...bankInfo, accountNumber: e.target.value })} placeholder="••••••••" />
                   </div>
                   <div>
                     <Label>Routing Number</Label>
-                    <Input placeholder="••••••••" />
+                    <Input value={bankInfo.routingNumber} onChange={(e) => setBankInfo({ ...bankInfo, routingNumber: e.target.value })} placeholder="••••••••" />
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground">10% of earnings go to AllCall. No upfront fees.</p>
@@ -247,7 +347,7 @@ const Signup = () => {
 
             {step > 0 && (
               <div className="flex items-center justify-between mt-8">
-                <Button variant="ghost" onClick={() => setStep(step - 1)}>
+                <Button variant="ghost" onClick={() => { setStep(step - 1); setErrors([]); }}>
                   <ArrowLeft className="w-4 h-4 mr-1" /> Back
                 </Button>
                 <Button variant="hero" onClick={handleNext}>
@@ -257,7 +357,6 @@ const Signup = () => {
             )}
           </motion.div>
 
-          {/* Progress bar */}
           {step > 0 && (
             <div className="mt-6">
               <div className="h-2 bg-secondary rounded-full overflow-hidden">
