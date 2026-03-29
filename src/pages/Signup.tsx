@@ -114,12 +114,6 @@ const Signup = () => {
                     <Label>Password</Label>
                     <Input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder="••••••••" />
                   </div>
-                  {role === "brand" && (
-                    <div>
-                      <Label>Company Name</Label>
-                      <Input value={formData.companyName} onChange={(e) => setFormData({ ...formData, companyName: e.target.value })} placeholder="Your brand" />
-                    </div>
-                  )}
                   <div>
                     <Label>Country</Label>
                     <Input value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} placeholder="United States" />
