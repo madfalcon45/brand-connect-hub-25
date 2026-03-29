@@ -50,10 +50,10 @@ const Signup = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-brand-subtle relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-brand opacity-5" />
-      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
-      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-primary/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/4" />
+    <div className="min-h-screen relative overflow-hidden" style={{ background: 'linear-gradient(135deg, hsl(152, 69%, 41%) 0%, hsl(160, 60%, 35%) 30%, hsl(145, 40%, 50%) 60%, hsl(140, 30%, 85%) 100%)' }}>
+      <div className="absolute inset-0 bg-gradient-brand opacity-15" />
+      <div className="absolute top-0 right-0 w-[700px] h-[700px] bg-primary-foreground/10 rounded-full blur-3xl -translate-y-1/3 translate-x-1/4" />
+      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-primary-foreground/5 rounded-full blur-3xl translate-y-1/3 -translate-x-1/4" />
       <Navbar />
       <div className="pt-24 pb-16">
         <div className="container max-w-xl relative z-10">
