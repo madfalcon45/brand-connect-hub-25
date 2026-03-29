@@ -50,10 +50,13 @@ const Signup = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-brand-subtle relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-brand opacity-5" />
+      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
+      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-primary/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/4" />
       <Navbar />
       <div className="pt-24 pb-16">
-        <div className="container max-w-xl">
+        <div className="container max-w-xl relative z-10">
           <motion.div
             key={step}
             initial={{ opacity: 0, x: 20 }}
@@ -92,10 +95,17 @@ const Signup = () => {
               <div className="space-y-5">
                 <h2 className="font-display text-2xl font-bold text-foreground">Create your account</h2>
                 <div className="space-y-4">
-                  <div>
-                    <Label>Full Name</Label>
-                    <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Your name" />
-                  </div>
+                  {role === "brand" ? (
+                    <div>
+                      <Label>Company Name</Label>
+                      <Input value={formData.companyName} onChange={(e) => setFormData({ ...formData, companyName: e.target.value })} placeholder="Your brand" />
+                    </div>
+                  ) : (
+                    <div>
+                      <Label>Full Name</Label>
+                      <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Your name" />
+                    </div>
+                  )}
                   <div>
                     <Label>Email</Label>
                     <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="you@example.com" />
@@ -104,12 +114,6 @@ const Signup = () => {
                     <Label>Password</Label>
                     <Input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder="••••••••" />
                   </div>
-                  {role === "brand" && (
-                    <div>
-                      <Label>Company Name</Label>
-                      <Input value={formData.companyName} onChange={(e) => setFormData({ ...formData, companyName: e.target.value })} placeholder="Your brand" />
-                    </div>
-                  )}
                   <div>
                     <Label>Country</Label>
                     <Input value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} placeholder="United States" />

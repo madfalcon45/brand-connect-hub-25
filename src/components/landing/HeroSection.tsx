@@ -75,29 +75,6 @@ const HeroSection = () => {
           </motion.div>
         </div>
 
-        {/* Stats */}
-        <motion.div
-          className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-3xl mx-auto mt-20"
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.5 }}
-        >
-          {[
-            { icon: Users, label: "Active Creators", value: "10K+" },
-            { icon: TrendingUp, label: "Campaigns Launched", value: "5K+" },
-            { icon: Sparkles, label: "Revenue Generated", value: "$2M+" },
-          ].map((stat) => (
-            <div key={stat.label} className="flex items-center gap-4 p-5 rounded-2xl bg-card border border-border shadow-card">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                <stat.icon className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <p className="font-display text-2xl font-bold text-foreground">{stat.value}</p>
-                <p className="text-sm text-muted-foreground">{stat.label}</p>
-              </div>
-            </div>
-          ))}
-        </motion.div>
       </div>
     </section>
   );
