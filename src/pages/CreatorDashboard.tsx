@@ -1,17 +1,23 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   BarChart3, Users, DollarSign, Settings, LogOut, Search, Filter,
   Star, TrendingUp, Link2, ExternalLink, ClipboardCopy, FileText, Eye, Check,
-  User, KeyRound, Moon, Sun
+  User, KeyRound, Moon, Sun, Crown, Info, Plus, CreditCard
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type Tab = "feed" | "active" | "applications" | "master-link" | "analytics" | "settings";
 
 const CreatorDashboard = () => {
+  const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("feed");
   const [filterCategory, setFilterCategory] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -21,15 +27,15 @@ const CreatorDashboard = () => {
   const [masterLinkIds, setMasterLinkIds] = useState<number[]>([]);
   const [address, setAddress] = useState("");
   const [darkMode, setDarkMode] = useState(false);
+  const [joinConfirmation, setJoinConfirmation] = useState<{ product: string; link: string } | null>(null);
+  const [copiedLink, setCopiedLink] = useState<string | null>(null);
+  const [masterLinkCopied, setMasterLinkCopied] = useState(false);
+  const [showAddToMasterLink, setShowAddToMasterLink] = useState(false);
 
   // Settings from signup
   const [settingsName, setSettingsName] = useState(() => localStorage.getItem("allcall_creator_name") || "");
   const [settingsEmail, setSettingsEmail] = useState(() => localStorage.getItem("allcall_email") || "");
   const [settingsCountry, setSettingsCountry] = useState(() => localStorage.getItem("allcall_country") || "");
-  const [settingsBank, setSettingsBank] = useState(() => {
-    const saved = localStorage.getItem("allcall_bank");
-    return saved ? JSON.parse(saved) : { bankName: "", accountNumber: "", routingNumber: "" };
-  });
   const [settingsPassword, setSettingsPassword] = useState({ current: "", new: "", confirm: "" });
   const savedAddress = settingsCountry ? `123 Creator St, ${settingsCountry}` : "";
 
@@ -71,15 +77,18 @@ const CreatorDashboard = () => {
       setAppliedIds([...appliedIds, campaign.id]);
     } else {
       const firstName = settingsName.split(" ")[0]?.toLowerCase() || "creator";
+      const link = `https://allcall.link/${settingsName.toLowerCase().replace(/\s/g, "")}/${campaign.brand.toLowerCase()}`;
       const newJoined = {
         id: campaign.id,
         brand: campaign.brand,
         product: campaign.product,
-        link: `https://allcall.link/${settingsName.toLowerCase().replace(/\s/g, "")}/${campaign.brand.toLowerCase()}`,
+        link,
         code: `${firstName}${Math.floor(Math.random() * 100)}`,
         earnings: 0,
       };
       setJoinedCampaigns([...joinedCampaigns, newJoined]);
+      setJoinConfirmation({ product: campaign.product, link });
+      setTimeout(() => setJoinConfirmation(null), 5000);
     }
   };
 
@@ -89,11 +98,28 @@ const CreatorDashboard = () => {
     return "available";
   };
 
+  const handleCopyLink = (link: string) => {
+    navigator.clipboard.writeText(link);
+    setCopiedLink(link);
+    setTimeout(() => setCopiedLink(null), 2000);
+  };
+
+  const handleCopyMasterLink = () => {
+    const masterUrl = `https://allcall.link/${settingsName.toLowerCase().replace(/\s/g, "") || "you"}`;
+    navigator.clipboard.writeText(masterUrl);
+    setMasterLinkCopied(true);
+    setTimeout(() => setMasterLinkCopied(false), 2000);
+  };
+
   const handleSaveSettings = () => {
     localStorage.setItem("allcall_creator_name", settingsName);
     localStorage.setItem("allcall_email", settingsEmail);
     localStorage.setItem("allcall_country", settingsCountry);
-    localStorage.setItem("allcall_bank", JSON.stringify(settingsBank));
+  };
+
+  const handleLogout = () => {
+    document.documentElement.classList.remove("dark");
+    navigate("/");
   };
 
   useEffect(() => {
@@ -101,8 +127,26 @@ const CreatorDashboard = () => {
     else document.documentElement.classList.remove("dark");
   }, [darkMode]);
 
+  const masterLinkName = settingsName.toLowerCase().replace(/\s/g, "") || "you";
+
   return (
     <div className="min-h-screen bg-muted/30 flex">
+      {/* Join confirmation toast */}
+      {joinConfirmation && (
+        <div className="fixed top-6 right-6 z-50 bg-primary text-primary-foreground px-5 py-4 rounded-xl shadow-lg space-y-2 max-w-sm">
+          <div className="flex items-center gap-2">
+            <Check className="w-4 h-4" />
+            <span className="text-sm font-medium">Joined {joinConfirmation.product}!</span>
+          </div>
+          <div className="flex items-center gap-2 bg-primary-foreground/10 rounded-lg px-3 py-1.5">
+            <span className="text-xs truncate flex-1">{joinConfirmation.link}</span>
+            <button onClick={() => handleCopyLink(joinConfirmation.link)} className="text-xs underline shrink-0">
+              {copiedLink === joinConfirmation.link ? "Copied!" : "Copy"}
+            </button>
+          </div>
+        </div>
+      )}
+
       <aside className="w-64 bg-card border-r border-border p-4 flex flex-col shrink-0">
         <Link to="/" className="flex items-center gap-2 mb-8">
           <div className="w-8 h-8 rounded-lg bg-gradient-brand flex items-center justify-center">
@@ -127,9 +171,9 @@ const CreatorDashboard = () => {
           ))}
         </nav>
 
-        <Link to="/" className="flex items-center gap-3 px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground">
+        <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground">
           <LogOut className="w-4 h-4" /> Log out
-        </Link>
+        </button>
       </aside>
 
       <main className="flex-1 p-8 overflow-y-auto">
@@ -159,7 +203,14 @@ const CreatorDashboard = () => {
                           <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="font-display font-bold text-foreground">{c.product}</h3>
                             {c.topPick && <Badge className="bg-warning/10 text-warning border-0 text-xs"><Star className="w-3 h-3 mr-1" /> Top Pick</Badge>}
-                            {c.isPro && <Badge className="bg-primary/10 text-primary border-0 text-xs cursor-help" title="Top brands track data longer for more creator attribution"><Star className="w-3 h-3 mr-1" /> Top Brand</Badge>}
+                            {c.isPro && (
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <Crown className="w-5 h-5 text-warning" />
+                                </TooltipTrigger>
+                                <TooltipContent>Top Brand — Pro subscription with extended attribution and priority placement</TooltipContent>
+                              </Tooltip>
+                            )}
                             {c.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0 text-xs">Sign-On ${c.signOnPay}</Badge>}
                           </div>
                           <p className="text-sm text-muted-foreground">{c.brand} · {c.category} · {c.platform}</p>
@@ -197,7 +248,14 @@ const CreatorDashboard = () => {
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <h1 className="font-display text-2xl font-bold text-foreground">{c.product}</h1>
-                      {c.isPro && <Badge className="bg-primary/10 text-primary border-0 text-xs"><Star className="w-3 h-3 mr-1" /> Top Brand</Badge>}
+                      {c.isPro && (
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Crown className="w-5 h-5 text-warning" />
+                          </TooltipTrigger>
+                          <TooltipContent>Top Brand — Pro subscription with extended attribution and priority placement</TooltipContent>
+                        </Tooltip>
+                      )}
                     </div>
                     <p className="text-muted-foreground">{c.brand} · {c.category}</p>
                   </div>
@@ -257,7 +315,9 @@ const CreatorDashboard = () => {
                           <p className="text-xs text-muted-foreground">Affiliate Link</p>
                           <p className="text-sm text-foreground truncate">{c.link}</p>
                         </div>
-                        <button className="text-primary hover:text-primary/80"><ClipboardCopy className="w-4 h-4" /></button>
+                        <button className="text-primary hover:text-primary/80" onClick={() => handleCopyLink(c.link)}>
+                          {copiedLink === c.link ? <Check className="w-4 h-4" /> : <ClipboardCopy className="w-4 h-4" />}
+                        </button>
                       </div>
                       <div className="p-3 rounded-lg bg-muted/50">
                         <p className="text-xs text-muted-foreground">Code</p>
@@ -287,10 +347,13 @@ const CreatorDashboard = () => {
                   const c = availableCampaigns.find((x) => x.id === id);
                   if (!c) return null;
                   return (
-                    <div key={id} className="p-5 rounded-2xl bg-card border border-border shadow-card flex items-center justify-between">
-                      <div>
-                        <h3 className="font-semibold text-foreground">{c.product}</h3>
-                        <p className="text-sm text-muted-foreground">{c.brand}</p>
+                    <div key={id} className="p-5 rounded-2xl bg-card border border-border shadow-card flex items-center justify-between cursor-pointer hover:shadow-card-hover transition-shadow" onClick={() => { setTab("feed"); setSelectedCampaign(id); }}>
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold">{c.brand[0]}</div>
+                        <div>
+                          <h3 className="font-semibold text-foreground">{c.product}</h3>
+                          <p className="text-sm text-muted-foreground">{c.brand} · {c.category}</p>
+                        </div>
                       </div>
                       <Badge variant="secondary">Pending</Badge>
                     </div>
@@ -303,21 +366,56 @@ const CreatorDashboard = () => {
 
         {tab === "master-link" && (
           <div className="space-y-6">
-            <h1 className="font-display text-3xl font-bold text-foreground">Master Link Page</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="font-display text-3xl font-bold text-foreground">Master Link Page</h1>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Info className="w-5 h-5 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">A master link is a single page that contains all your active campaign affiliate links and discount codes. Share one link in your bio instead of multiple.</TooltipContent>
+              </Tooltip>
+            </div>
             <p className="text-sm text-muted-foreground">One link for all your campaigns. Perfect for your bio.</p>
 
             <div className="bg-card border border-border rounded-2xl p-6 shadow-card">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <Link2 className="w-5 h-5 text-primary" />
-                  <span className="font-mono text-sm text-foreground">allcall.link/{settingsName.toLowerCase().replace(/\s/g, "") || "you"}</span>
+                  <span className="font-mono text-sm text-foreground">allcall.link/{masterLinkName}</span>
                 </div>
-                <Button variant="outline" size="sm"><ClipboardCopy className="w-4 h-4 mr-1" /> Copy</Button>
+                <Button variant="outline" size="sm" onClick={handleCopyMasterLink}>
+                  {masterLinkCopied ? <><Check className="w-4 h-4 mr-1" /> Copied!</> : <><ClipboardCopy className="w-4 h-4 mr-1" /> Copy</>}
+                </Button>
               </div>
             </div>
 
             <div className="space-y-3">
-              <h2 className="font-display text-lg font-semibold text-foreground">Campaigns on Master Link</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="font-display text-lg font-semibold text-foreground">Campaigns on Master Link</h2>
+                <Button variant="outline" size="sm" onClick={() => setShowAddToMasterLink(!showAddToMasterLink)}>
+                  <Plus className="w-4 h-4 mr-1" /> Add Campaign
+                </Button>
+              </div>
+
+              {showAddToMasterLink && (
+                <div className="bg-card border border-border rounded-2xl p-4 shadow-card space-y-2">
+                  <p className="text-sm font-medium text-foreground">Select campaigns to add:</p>
+                  {joinedCampaigns.filter((c) => !masterLinkIds.includes(c.id)).length === 0 ? (
+                    <p className="text-sm text-muted-foreground">All your active campaigns are already on your master link.</p>
+                  ) : (
+                    joinedCampaigns.filter((c) => !masterLinkIds.includes(c.id)).map((c) => (
+                      <div key={c.id} className="flex items-center justify-between p-3 rounded-lg border border-border">
+                        <div>
+                          <p className="font-semibold text-foreground text-sm">{c.product}</p>
+                          <p className="text-xs text-muted-foreground">{c.brand}</p>
+                        </div>
+                        <Button variant="hero" size="sm" onClick={() => { setMasterLinkIds([...masterLinkIds, c.id]); }}>Add</Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
               {joinedCampaigns.filter((c) => masterLinkIds.includes(c.id)).map((c) => (
                 <div key={c.id} className="p-4 rounded-xl bg-card border border-border flex items-center justify-between">
                   <div>
@@ -329,7 +427,7 @@ const CreatorDashboard = () => {
               ))}
               {joinedCampaigns.filter((c) => masterLinkIds.includes(c.id)).length === 0 && (
                 <div className="p-4 rounded-xl border-2 border-dashed border-border text-center">
-                  <p className="text-sm text-muted-foreground">Add campaigns from your Active Campaigns page</p>
+                  <p className="text-sm text-muted-foreground">No campaigns on your master link yet. Click "Add Campaign" above to get started.</p>
                 </div>
               )}
             </div>
@@ -369,7 +467,14 @@ const CreatorDashboard = () => {
               </div>
               <div><label className="text-sm font-medium text-foreground">Full Name</label><Input value={settingsName} onChange={(e) => setSettingsName(e.target.value)} /></div>
               <div><label className="text-sm font-medium text-foreground">Email</label><Input value={settingsEmail} onChange={(e) => setSettingsEmail(e.target.value)} /></div>
-              <div><label className="text-sm font-medium text-foreground">Country</label><Input value={settingsCountry} onChange={(e) => setSettingsCountry(e.target.value)} /></div>
+              <div>
+                <label className="text-sm font-medium text-foreground">Country</label>
+                <select className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm" value={settingsCountry} onChange={(e) => setSettingsCountry(e.target.value)}>
+                  <option value="">Select country</option>
+                  {["United States", "United Kingdom", "Canada"].map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">More country support coming soon.</p>
+              </div>
               <div><label className="text-sm font-medium text-foreground">Address (for product delivery)</label><Input value={savedAddress} readOnly /></div>
             </div>
 
@@ -385,12 +490,14 @@ const CreatorDashboard = () => {
 
             <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-4">
               <div className="flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-primary" />
+                <CreditCard className="w-5 h-5 text-primary" />
                 <h2 className="font-display text-lg font-semibold text-foreground">Payment Info</h2>
               </div>
-              <div><label className="text-sm font-medium text-foreground">Bank Name</label><Input value={settingsBank.bankName} onChange={(e) => setSettingsBank({ ...settingsBank, bankName: e.target.value })} /></div>
-              <div><label className="text-sm font-medium text-foreground">Account Number</label><Input value={settingsBank.accountNumber} onChange={(e) => setSettingsBank({ ...settingsBank, accountNumber: e.target.value })} /></div>
-              <div><label className="text-sm font-medium text-foreground">Routing Number</label><Input value={settingsBank.routingNumber} onChange={(e) => setSettingsBank({ ...settingsBank, routingNumber: e.target.value })} /></div>
+              <div className="p-6 rounded-xl border-2 border-dashed border-border text-center space-y-3">
+                <CreditCard className="w-8 h-8 text-muted-foreground mx-auto" />
+                <p className="text-sm text-muted-foreground">Third-party payment service integration coming soon.</p>
+                <Button variant="outline" size="sm" disabled>Connect Payment Service</Button>
+              </div>
             </div>
 
             <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-4">
