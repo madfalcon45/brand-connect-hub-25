@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   BarChart3, Plus, Users, DollarSign, Settings, Eye, LogOut, Search,
   Bell, Lock, TrendingUp, Filter, Send, Check, X as XIcon,
-  Package, Link2, MoreHorizontal, Star, Info, Moon, Sun, User, KeyRound
+  Package, Link2, MoreHorizontal, Star, Info, Moon, Sun, User, KeyRound, Crown, CreditCard
 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
@@ -15,11 +15,31 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+const brandCategories = [
+  "Fashion & Apparel", "Beauty & Skincare", "Health & Wellness", "Food & Beverage",
+  "Tech & Electronics", "Home & Living", "Sports & Fitness", "Travel & Hospitality",
+  "Education", "Finance", "Entertainment", "Automotive", "Pet Products", "Other",
+];
+
+// Map brand categories to campaign categories
+const categoryMap: Record<string, string> = {
+  "Fashion & Apparel": "Fashion",
+  "Beauty & Skincare": "Beauty",
+  "Health & Wellness": "Health",
+  "Food & Beverage": "Food",
+  "Tech & Electronics": "Tech",
+  "Home & Living": "Home",
+  "Sports & Fitness": "Sports",
+  "Travel & Hospitality": "Travel",
+};
+
+const campaignCategories = ["Beauty", "Health", "Tech", "Fashion", "Food", "Sports", "Travel", "Home", "Education", "Finance", "Entertainment", "Automotive", "Pet Products", "Other"];
+
 type Campaign = {
   id: number;
   name: string;
   category: string;
-  status: "active" | "completed";
+  status: "active" | "completed" | "deactivated";
   signOnPay: number;
   description: string;
   link: string;
@@ -44,8 +64,9 @@ type Application = {
 type Tab = "dashboard" | "campaigns" | "new-campaign" | "applications" | "creators" | "analytics" | "creator-view" | "settings";
 
 const BrandDashboard = () => {
+  const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("dashboard");
-  const [plan] = useState<"basic" | "pro">(() => {
+  const [plan, setPlan] = useState<"basic" | "pro">(() => {
     const saved = localStorage.getItem("allcall_plan");
     return (saved === "pro" ? "pro" : "basic");
   });
@@ -55,6 +76,10 @@ const BrandDashboard = () => {
   const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null);
   const [showLaunchSuccess, setShowLaunchSuccess] = useState(false);
   const [launchedCampaignName, setLaunchedCampaignName] = useState("");
+  const [showProGate, setShowProGate] = useState(false);
+
+  // 3-dot menu
+  const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
 
   // Creator list filters
   const [creatorSearch, setCreatorSearch] = useState("");
@@ -67,14 +92,16 @@ const BrandDashboard = () => {
   const [settingsName, setSettingsName] = useState(() => localStorage.getItem("allcall_brand_name") || "");
   const [settingsEmail, setSettingsEmail] = useState(() => localStorage.getItem("allcall_email") || "");
   const [settingsCountry, setSettingsCountry] = useState(() => localStorage.getItem("allcall_country") || "");
-  const [settingsBank, setSettingsBank] = useState(() => {
-    const saved = localStorage.getItem("allcall_bank");
-    return saved ? JSON.parse(saved) : { bankName: "", accountNumber: "", routingNumber: "" };
-  });
   const [settingsPassword, setSettingsPassword] = useState({ current: "", new: "", confirm: "" });
 
+  // Saved brand categories
+  const savedCategories: string[] = (() => {
+    try { return JSON.parse(localStorage.getItem("allcall_categories") || "[]"); } catch { return []; }
+  })();
+  const defaultCampaignCategory = savedCategories.length > 0 ? (categoryMap[savedCategories[0]] || "Other") : "";
+
   const [campaignForm, setCampaignForm] = useState({
-    name: "", category: "", description: "", link: "", notes: "",
+    name: "", category: defaultCampaignCategory, description: "", link: "", notes: "",
     creatorCode: true, discount: "10",
     payMethod: "hybrid" as "commission" | "flat" | "hybrid",
     commissionRate: "5", flatRate: "5", flatPer: "100",
@@ -198,7 +225,7 @@ const BrandDashboard = () => {
     setLaunchedCampaignName(newCampaign.name);
     setShowLaunchSuccess(true);
     setCampaignForm({
-      name: "", category: "", description: "", link: "", notes: "",
+      name: "", category: defaultCampaignCategory, description: "", link: "", notes: "",
       creatorCode: true, discount: "10",
       payMethod: "hybrid",
       commissionRate: "5", flatRate: "5", flatPer: "100",
@@ -221,7 +248,31 @@ const BrandDashboard = () => {
     localStorage.setItem("allcall_brand_name", settingsName);
     localStorage.setItem("allcall_email", settingsEmail);
     localStorage.setItem("allcall_country", settingsCountry);
-    localStorage.setItem("allcall_bank", JSON.stringify(settingsBank));
+  };
+
+  const handleLogout = () => {
+    document.documentElement.classList.remove("dark");
+    navigate("/");
+  };
+
+  const handleSidebarClick = (key: Tab, isPro?: boolean) => {
+    if (isPro && plan !== "pro") {
+      setShowProGate(true);
+      return;
+    }
+    setTab(key);
+    setShowLaunchSuccess(false);
+    setMenuOpenId(null);
+  };
+
+  const handleDeleteCampaign = (id: number) => {
+    setCampaigns((prev) => prev.filter((c) => c.id !== id));
+    setMenuOpenId(null);
+  };
+
+  const handleDeactivateCampaign = (id: number) => {
+    setCampaigns((prev) => prev.map((c) => c.id === id ? { ...c, status: "deactivated" } : c));
+    setMenuOpenId(null);
   };
 
   useEffect(() => {
@@ -244,6 +295,21 @@ const BrandDashboard = () => {
 
   return (
     <div className="min-h-screen bg-muted/30 flex">
+      {/* Pro gate modal */}
+      {showProGate && (
+        <div className="fixed inset-0 z-50 bg-foreground/50 flex items-center justify-center" onClick={() => setShowProGate(false)}>
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-card border border-border rounded-2xl p-8 max-w-sm text-center shadow-lg" onClick={(e) => e.stopPropagation()}>
+            <Lock className="w-10 h-10 text-primary mx-auto mb-4" />
+            <h3 className="font-display text-xl font-bold text-foreground mb-2">Pro Feature</h3>
+            <p className="text-sm text-muted-foreground mb-6">This feature is available for Pro users. Upgrade to unlock creator search, filtering, and more.</p>
+            <div className="flex gap-3 justify-center">
+              <Button variant="hero" onClick={() => { setShowProGate(false); setTab("settings"); }}>Upgrade Subscription</Button>
+              <Button variant="outline" onClick={() => setShowProGate(false)}>Cancel</Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       {/* Sidebar */}
       <aside className="w-64 bg-card border-r border-border p-4 flex flex-col shrink-0">
         <Link to="/" className="flex items-center gap-2 mb-8">
@@ -258,11 +324,7 @@ const BrandDashboard = () => {
           {sidebarItems.map((item) => (
             <button
               key={item.key}
-              onClick={() => {
-                if (item.pro && plan !== "pro") return;
-                setTab(item.key);
-                setShowLaunchSuccess(false);
-              }}
+              onClick={() => handleSidebarClick(item.key, item.pro)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
                 tab === item.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"
               } ${item.pro && plan !== "pro" ? "opacity-50" : ""}`}
@@ -274,9 +336,9 @@ const BrandDashboard = () => {
           ))}
         </nav>
 
-        <Link to="/" className="flex items-center gap-3 px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground">
+        <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground">
           <LogOut className="w-4 h-4" /> Log out
-        </Link>
+        </button>
       </aside>
 
       {/* Main content */}
@@ -361,8 +423,8 @@ const BrandDashboard = () => {
             ) : (
               <div className="space-y-3">
                 {campaigns.map((c) => (
-                  <div key={c.id} className="p-5 rounded-2xl bg-card border border-border shadow-card cursor-pointer hover:shadow-card-hover transition-shadow" onClick={() => setSelectedCampaignId(c.id)}>
-                    <div className="flex items-center justify-between">
+                  <div key={c.id} className="p-5 rounded-2xl bg-card border border-border shadow-card hover:shadow-card-hover transition-shadow relative">
+                    <div className="flex items-center justify-between cursor-pointer" onClick={() => setSelectedCampaignId(c.id)}>
                       <div className="flex items-center gap-4">
                         <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-xl">{c.name[0]}</div>
                         <div>
@@ -373,7 +435,21 @@ const BrandDashboard = () => {
                           <p className="text-sm text-muted-foreground">{c.category} · {c.activeCreators.length} active creators · {c.payMethod}</p>
                         </div>
                       </div>
-                      <Badge variant={c.status === "active" ? "default" : "secondary"}>{c.status}</Badge>
+                      <div className="flex items-center gap-3">
+                        <Badge variant={c.status === "active" ? "default" : "secondary"}>{c.status}</Badge>
+                        <div className="relative" onClick={(e) => e.stopPropagation()}>
+                          <button onClick={() => setMenuOpenId(menuOpenId === c.id ? null : c.id)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-accent transition-colors">
+                            <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+                          </button>
+                          {menuOpenId === c.id && (
+                            <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="absolute right-0 top-10 bg-card border border-border rounded-xl shadow-lg z-20 w-44 overflow-hidden">
+                              <button onClick={() => { setSelectedCampaignId(c.id); setMenuOpenId(null); }} className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors">Edit Campaign</button>
+                              <button onClick={() => handleDeactivateCampaign(c.id)} className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors">{c.status === "active" ? "Deactivate" : "Activate"}</button>
+                              <button onClick={() => handleDeleteCampaign(c.id)} className="w-full text-left px-4 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors">Delete Campaign</button>
+                            </motion.div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -428,7 +504,7 @@ const BrandDashboard = () => {
         })()}
 
         {tab === "new-campaign" && !showLaunchSuccess && (
-          <div className="max-w-2xl space-y-8">
+          <div className="max-w-2xl space-y-8" style={{ background: 'linear-gradient(180deg, hsl(145, 30%, 95%) 0%, transparent 100%)', margin: '-2rem', padding: '2rem' }}>
             <h1 className="font-display text-3xl font-bold text-foreground">Create Campaign</h1>
 
             <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-6">
@@ -441,7 +517,7 @@ const BrandDashboard = () => {
                 <div><label className="text-sm font-medium text-foreground">Category</label>
                   <select className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm" value={campaignForm.category} onChange={(e) => setCampaignForm({ ...campaignForm, category: e.target.value })}>
                     <option value="">Select category</option>
-                    {["Beauty", "Health", "Tech", "Fashion", "Food", "Sports", "Travel", "Home", "Other"].map((c) => <option key={c}>{c}</option>)}
+                    {campaignCategories.map((c) => <option key={c}>{c}</option>)}
                   </select>
                 </div>
                 <div><label className="text-sm font-medium text-foreground">Description</label><textarea className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm min-h-[80px]" value={campaignForm.description} onChange={(e) => setCampaignForm({ ...campaignForm, description: e.target.value })} placeholder="Brief product description..." /></div>
@@ -598,7 +674,7 @@ const BrandDashboard = () => {
             <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-6">
               <div className="flex items-center gap-2">
                 <h2 className="font-display text-lg font-semibold text-foreground">Creator Filters</h2>
-                {plan !== "pro" && <Badge variant="outline" className="text-xs"><Lock className="w-3 h-3 mr-1" /> Pro</Badge>}
+                {plan !== "pro" && <Badge variant="outline" className="text-xs cursor-pointer" onClick={() => setShowProGate(true)}><Lock className="w-3 h-3 mr-1" /> Pro</Badge>}
               </div>
               {plan === "pro" ? (
                 <div className="space-y-4">
@@ -625,7 +701,7 @@ const BrandDashboard = () => {
                   <div>
                     <p className="text-sm font-medium text-foreground mb-2">Creator categories</p>
                     <div className="flex flex-wrap gap-2">
-                      {["Beauty", "Health", "Tech", "Fashion", "Food", "Fitness", "Travel", "Lifestyle", "Gaming", "Comedy"].map((cat) => (
+                      {campaignCategories.map((cat) => (
                         <button key={cat} onClick={() => setCampaignForm({
                           ...campaignForm,
                           filterCategories: campaignForm.filterCategories.includes(cat) ? campaignForm.filterCategories.filter((c) => c !== cat) : [...campaignForm.filterCategories, cat],
@@ -637,10 +713,10 @@ const BrandDashboard = () => {
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-6 text-muted-foreground">
+                <div className="text-center py-6 text-muted-foreground cursor-pointer" onClick={() => setShowProGate(true)}>
                   <Lock className="w-8 h-8 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">Upgrade to Pro to filter creators by followers, categories, and platforms.</p>
-                  <Link to="/pricing"><Button variant="outline" size="sm" className="mt-3">Upgrade to Pro</Button></Link>
+                  <Button variant="outline" size="sm" className="mt-3">Upgrade to Pro</Button>
                 </div>
               )}
             </div>
@@ -697,7 +773,7 @@ const BrandDashboard = () => {
                 <Button variant="secondary" onClick={() => { setTab("creator-view"); setShowLaunchSuccess(false); }}>
                   <Eye className="w-4 h-4 mr-2" /> View as Creator
                 </Button>
-                <Button variant="outline" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10" onClick={() => { setTab("campaigns"); setShowLaunchSuccess(false); }}>
+                <Button className="bg-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/30 border-0" onClick={() => { setTab("campaigns"); setShowLaunchSuccess(false); }}>
                   Go to Campaigns
                 </Button>
               </div>
@@ -855,7 +931,6 @@ const BrandDashboard = () => {
             <p className="text-sm text-muted-foreground">See your campaigns from a creator's perspective, alongside other example campaigns.</p>
 
             <div className="space-y-4">
-              {/* User's own campaigns */}
               {campaigns.filter((c) => c.status === "active").map((c) => (
                 <div key={c.id} className="p-5 rounded-2xl bg-card border border-border shadow-card">
                   <div className="flex items-center gap-4 mb-3">
@@ -864,7 +939,14 @@ const BrandDashboard = () => {
                       <div className="flex items-center gap-2">
                         <h3 className="font-display font-bold text-foreground">{c.name}</h3>
                         <Badge className="bg-accent text-accent-foreground border-0 text-xs">Your Campaign</Badge>
-                        {plan === "pro" && <Badge className="bg-primary/10 text-primary border-0 text-xs"><Star className="w-3 h-3 mr-1" /> Top Brand</Badge>}
+                        {plan === "pro" && (
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Crown className="w-5 h-5 text-warning" />
+                            </TooltipTrigger>
+                            <TooltipContent>Top Brand — This brand has a Pro subscription with extended attribution and priority placement</TooltipContent>
+                          </Tooltip>
+                        )}
                         {c.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0 text-xs">Sign-On ${c.signOnPay}</Badge>}
                       </div>
                       <p className="text-sm text-muted-foreground">{settingsName || "Your Brand"} · {c.category} · {c.payMethod}</p>
@@ -874,7 +956,6 @@ const BrandDashboard = () => {
                 </div>
               ))}
 
-              {/* Example campaigns */}
               {exampleCreatorCampaigns.map((c, i) => (
                 <div key={i} className="p-5 rounded-2xl bg-card border border-border shadow-card">
                   <div className="flex items-center gap-4 mb-3">
@@ -882,7 +963,14 @@ const BrandDashboard = () => {
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-display font-bold text-foreground">{c.name}</h3>
-                        {c.isPro && <Badge className="bg-primary/10 text-primary border-0 text-xs"><Star className="w-3 h-3 mr-1" /> Top Brand</Badge>}
+                        {c.isPro && (
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Crown className="w-5 h-5 text-warning" />
+                            </TooltipTrigger>
+                            <TooltipContent>Top Brand — This brand has a Pro subscription with extended attribution and priority placement</TooltipContent>
+                          </Tooltip>
+                        )}
                         {c.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0 text-xs">Sign-On ${c.signOnPay}</Badge>}
                       </div>
                       <p className="text-sm text-muted-foreground">{c.brand} · {c.category} · {c.platform}</p>
@@ -907,7 +995,14 @@ const BrandDashboard = () => {
               </div>
               <div><label className="text-sm font-medium text-foreground">Company Name</label><Input value={settingsName} onChange={(e) => setSettingsName(e.target.value)} /></div>
               <div><label className="text-sm font-medium text-foreground">Email</label><Input value={settingsEmail} onChange={(e) => setSettingsEmail(e.target.value)} /></div>
-              <div><label className="text-sm font-medium text-foreground">Country</label><Input value={settingsCountry} onChange={(e) => setSettingsCountry(e.target.value)} /></div>
+              <div>
+                <label className="text-sm font-medium text-foreground">Country</label>
+                <select className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm" value={settingsCountry} onChange={(e) => setSettingsCountry(e.target.value)}>
+                  <option value="">Select country</option>
+                  {["United States", "United Kingdom", "Canada"].map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">More country support coming soon.</p>
+              </div>
             </div>
 
             <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-4">
@@ -922,12 +1017,14 @@ const BrandDashboard = () => {
 
             <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-4">
               <div className="flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-primary" />
+                <CreditCard className="w-5 h-5 text-primary" />
                 <h2 className="font-display text-lg font-semibold text-foreground">Payment Information</h2>
               </div>
-              <div><label className="text-sm font-medium text-foreground">Bank Name</label><Input value={settingsBank.bankName} onChange={(e) => setSettingsBank({ ...settingsBank, bankName: e.target.value })} /></div>
-              <div><label className="text-sm font-medium text-foreground">Account Number</label><Input value={settingsBank.accountNumber} onChange={(e) => setSettingsBank({ ...settingsBank, accountNumber: e.target.value })} /></div>
-              <div><label className="text-sm font-medium text-foreground">Routing Number</label><Input value={settingsBank.routingNumber} onChange={(e) => setSettingsBank({ ...settingsBank, routingNumber: e.target.value })} /></div>
+              <div className="p-6 rounded-xl border-2 border-dashed border-border text-center space-y-3">
+                <CreditCard className="w-8 h-8 text-muted-foreground mx-auto" />
+                <p className="text-sm text-muted-foreground">Third-party payment service integration coming soon.</p>
+                <Button variant="outline" size="sm" disabled>Connect Payment Service</Button>
+              </div>
             </div>
 
             <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-4">
@@ -946,7 +1043,7 @@ const BrandDashboard = () => {
             <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-4">
               <h2 className="font-display text-lg font-semibold text-foreground">Subscription</h2>
               <p className="text-sm text-muted-foreground">Current plan: <span className="font-semibold text-foreground">{plan === "pro" ? "Pro ($49/mo)" : "Basic (Free)"}</span></p>
-              {plan !== "pro" && <Link to="/pricing"><Button variant="outline" size="sm">Upgrade to Pro</Button></Link>}
+              {plan !== "pro" && <Button variant="outline" size="sm" onClick={() => setShowProGate(true)}>Upgrade to Pro</Button>}
             </div>
 
             <Button variant="hero" onClick={handleSaveSettings}>Save All Changes</Button>

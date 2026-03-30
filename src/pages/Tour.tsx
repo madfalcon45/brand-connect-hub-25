@@ -1,51 +1,51 @@
 import Navbar from "@/components/landing/Navbar";
 import Footer from "@/components/landing/Footer";
 import { motion } from "framer-motion";
-import { ArrowRight, BarChart3, Link2, Users, DollarSign, Sparkles, Eye } from "lucide-react";
+import { ArrowRight, BarChart3, Link2, Users, DollarSign, Sparkles, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
 const steps = [
   {
     title: "Brands Create Campaigns",
-    description: "Set product details, payment methods (commission, flat rate, or hybrid), creator filters, and whether creators need to apply or can join instantly.",
+    description: "Set your product, payment method, and creator requirements in minutes.",
     icon: Sparkles,
   },
   {
-    title: "Creators Discover & Apply",
-    description: "Creators browse a social-media style feed of campaigns, sorted by AI based on matching categories, platforms, and brand tier. Top picks get badges.",
-    icon: Eye,
+    title: "Creators Apply",
+    description: "Creators browse campaigns and apply to the ones that fit their audience.",
+    icon: UserCheck,
   },
   {
-    title: "Affiliate Links & Codes",
-    description: "Approved creators get unique tracking links and discount codes. They can add all their campaigns to a single master link page for their bio.",
+    title: "Affiliate Code Generation",
+    description: "Approved creators get unique tracking links and discount codes automatically.",
     icon: Link2,
   },
   {
-    title: "Track Sales & Attribution",
-    description: "Every click and sale is tracked per creator. Brands can also manually attribute offline sales to creators.",
+    title: "Track Performance",
+    description: "Every click and sale is tracked per creator in real time.",
     icon: BarChart3,
   },
   {
-    title: "Automatic Payments",
-    description: "Brands pay creators via sign-on pay, commission, or flat rate. Payments are processed through connected bank info.",
+    title: "Creator Payout",
+    description: "Creators get paid via commission, flat rate, or sign-on pay.",
     icon: DollarSign,
   },
   {
     title: "Grow Together",
-    description: "Brands see active creator counts and performance. Creators build a portfolio of campaigns and earnings across multiple brands.",
+    description: "Brands and creators build long-term partnerships and scale together.",
     icon: Users,
   },
 ];
 
 const Tour = () => (
-  <div className="min-h-screen bg-background">
+  <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, hsl(152, 69%, 41%) 0%, hsl(160, 60%, 35%) 30%, hsl(145, 40%, 50%) 60%, hsl(140, 30%, 85%) 100%)' }}>
     <Navbar />
     <section className="pt-32 pb-24">
       <div className="container max-w-4xl">
         <div className="text-center mb-16">
-          <h1 className="font-display text-4xl md:text-6xl font-bold mb-4 text-foreground">How AllCall Works</h1>
-          <p className="text-lg text-muted-foreground">A quick tour of the platform from both sides.</p>
+          <h1 className="font-display text-4xl md:text-6xl font-bold mb-4 text-primary-foreground">How AllCall Works</h1>
+          <p className="text-lg text-primary-foreground/80">A quick tour of the platform from both sides.</p>
         </div>
 
         <div className="space-y-8">

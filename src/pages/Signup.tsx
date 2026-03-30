@@ -5,16 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { motion } from "framer-motion";
-import { Building2, Palette, ArrowRight, ArrowLeft, Check, X, AlertCircle } from "lucide-react";
+import { Building2, Palette, ArrowRight, ArrowLeft, Check, X, AlertCircle, CreditCard } from "lucide-react";
 
-const countries = [
-  "United States", "Canada", "United Kingdom", "Australia", "Germany", "France",
-  "Spain", "Italy", "Netherlands", "Sweden", "Norway", "Denmark", "Finland",
-  "Brazil", "Mexico", "Argentina", "Colombia", "India", "Japan", "South Korea",
-  "China", "Singapore", "Philippines", "Nigeria", "South Africa", "Kenya",
-  "Egypt", "UAE", "Saudi Arabia", "Israel", "Turkey", "Poland", "Ireland",
-  "New Zealand", "Portugal", "Belgium", "Switzerland", "Austria", "Other",
-];
+const countries = ["United States", "United Kingdom", "Canada"];
 
 const brandCategories = [
   "Fashion & Apparel", "Beauty & Skincare", "Health & Wellness", "Food & Beverage",
@@ -53,11 +46,12 @@ const Signup = () => {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [formData, setFormData] = useState({ name: "", email: "", password: "", companyName: "", country: "" });
   const [socials, setSocials] = useState([{ platform: "", url: "" }]);
-  const [bankInfo, setBankInfo] = useState({ bankName: "", accountNumber: "", routingNumber: "" });
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
 
-  const totalSteps = role === "brand" ? 4 : 4;
+  // Brand: steps 1=account, 2=categories, 3=plan, 4=payment
+  // Creator: steps 1=account, 2=categories, 3=socials, 4=payment
+  const totalSteps = 4;
   const progress = (step / totalSteps) * 100;
 
   const toggleCategory = (cat: string) => {
@@ -67,6 +61,8 @@ const Signup = () => {
   };
 
   const addSocial = () => setSocials([...socials, { platform: "", url: "" }]);
+
+  const getUsedPlatforms = () => socials.map((s) => s.platform).filter(Boolean);
 
   const validate = (): string[] => {
     const errs: string[] = [];
@@ -84,17 +80,7 @@ const Signup = () => {
       if (socials.every((s) => !s.platform || !s.url.trim())) errs.push("Add at least one social account");
     }
     if (step === 3 && role === "brand") {
-      if (!bankInfo.bankName.trim()) errs.push("Bank Name is required");
-      if (!bankInfo.accountNumber.trim()) errs.push("Account Number is required");
-      if (!bankInfo.routingNumber.trim()) errs.push("Routing Number is required");
-    }
-    if (step === 4 && role === "brand") {
       if (!selectedPlan) errs.push("Choose a plan before continuing");
-    }
-    if (step === 4 && role === "creator") {
-      if (!bankInfo.bankName.trim()) errs.push("Bank Name is required");
-      if (!bankInfo.accountNumber.trim()) errs.push("Account Number is required");
-      if (!bankInfo.routingNumber.trim()) errs.push("Routing Number is required");
     }
     return errs;
   };
@@ -108,9 +94,11 @@ const Signup = () => {
     setErrors([]);
     if (step < totalSteps) setStep(step + 1);
     else {
-      localStorage.setItem("allcall_bank", JSON.stringify(bankInfo));
       if (selectedPlan) localStorage.setItem("allcall_plan", selectedPlan);
-      if (role === "brand") localStorage.setItem("allcall_brand_name", formData.companyName);
+      if (role === "brand") {
+        localStorage.setItem("allcall_brand_name", formData.companyName);
+        localStorage.setItem("allcall_categories", JSON.stringify(selectedCategories));
+      }
       if (role === "creator") localStorage.setItem("allcall_creator_name", formData.name);
       localStorage.setItem("allcall_email", formData.email);
       localStorage.setItem("allcall_country", formData.country);
@@ -152,20 +140,20 @@ const Signup = () => {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <button
-                    onClick={() => { setRole("brand"); setStep(1); setErrors([]); }}
-                    className="p-6 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all text-center group"
-                  >
-                    <Building2 className="w-10 h-10 text-primary mx-auto mb-3" />
-                    <p className="font-display font-semibold text-foreground">I'm a Brand</p>
-                    <p className="text-xs text-muted-foreground mt-1">Launch campaigns & find creators</p>
-                  </button>
-                  <button
                     onClick={() => { setRole("creator"); setStep(1); setErrors([]); }}
-                    className="p-6 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all text-center group"
+                    className="p-6 rounded-xl border-2 border-primary bg-primary/5 hover:bg-primary/10 transition-all text-center group"
                   >
                     <Palette className="w-10 h-10 text-primary mx-auto mb-3" />
                     <p className="font-display font-semibold text-foreground">I'm a Creator</p>
                     <p className="text-xs text-muted-foreground mt-1">Discover campaigns & earn</p>
+                  </button>
+                  <button
+                    onClick={() => { setRole("brand"); setStep(1); setErrors([]); }}
+                    className="p-6 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all text-center group"
+                  >
+                    <Building2 className="w-10 h-10 text-muted-foreground group-hover:text-primary mx-auto mb-3 transition-colors" />
+                    <p className="font-display font-semibold text-foreground">I'm a Brand</p>
+                    <p className="text-xs text-muted-foreground mt-1">Launch campaigns & find creators</p>
                   </button>
                 </div>
               </div>
@@ -206,6 +194,7 @@ const Signup = () => {
                         <option key={c} value={c}>{c}</option>
                       ))}
                     </select>
+                    <p className="text-xs text-muted-foreground mt-1">More country support coming soon.</p>
                   </div>
                 </div>
               </div>
@@ -239,62 +228,42 @@ const Signup = () => {
               <div className="space-y-5">
                 <h2 className="font-display text-2xl font-bold text-foreground">Social Accounts</h2>
                 <p className="text-sm text-muted-foreground">Add your platforms so brands can find you. Followers are tracked automatically from your profile URL.</p>
-                {socials.map((s, i) => (
-                  <div key={i} className="grid grid-cols-3 gap-3">
-                    <select
-                      className="col-span-1 rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                      value={s.platform}
-                      onChange={(e) => {
-                        const updated = [...socials];
-                        updated[i].platform = e.target.value;
-                        setSocials(updated);
-                      }}
-                    >
-                      <option value="">Platform</option>
-                      <option>TikTok</option>
-                      <option>Instagram</option>
-                      <option>YouTube</option>
-                      <option>Twitter/X</option>
-                      <option>Facebook</option>
-                    </select>
-                    <Input
-                      className="col-span-2"
-                      placeholder="Profile URL"
-                      value={s.url}
-                      onChange={(e) => {
-                        const updated = [...socials];
-                        updated[i].url = e.target.value;
-                        setSocials(updated);
-                      }}
-                    />
-                  </div>
-                ))}
+                {socials.map((s, i) => {
+                  const usedPlatforms = getUsedPlatforms();
+                  return (
+                    <div key={i} className="grid grid-cols-3 gap-3">
+                      <select
+                        className="col-span-1 rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                        value={s.platform}
+                        onChange={(e) => {
+                          const updated = [...socials];
+                          updated[i].platform = e.target.value;
+                          setSocials(updated);
+                        }}
+                      >
+                        <option value="">Platform</option>
+                        {["TikTok", "Instagram", "YouTube", "Twitter/X", "Facebook"].map((p) => (
+                          <option key={p} disabled={usedPlatforms.includes(p) && s.platform !== p}>{p}</option>
+                        ))}
+                      </select>
+                      <Input
+                        className="col-span-2"
+                        placeholder="Profile URL"
+                        value={s.url}
+                        onChange={(e) => {
+                          const updated = [...socials];
+                          updated[i].url = e.target.value;
+                          setSocials(updated);
+                        }}
+                      />
+                    </div>
+                  );
+                })}
                 <Button variant="ghost" size="sm" onClick={addSocial}>+ Add another platform</Button>
               </div>
             )}
 
             {step === 3 && role === "brand" && (
-              <div className="space-y-5">
-                <h2 className="font-display text-2xl font-bold text-foreground">Payment Information</h2>
-                <p className="text-sm text-muted-foreground">Set up how you'll pay creators.</p>
-                <div className="space-y-4">
-                  <div>
-                    <Label>Bank Name</Label>
-                    <Input value={bankInfo.bankName} onChange={(e) => setBankInfo({ ...bankInfo, bankName: e.target.value })} placeholder="Your bank" />
-                  </div>
-                  <div>
-                    <Label>Account Number</Label>
-                    <Input value={bankInfo.accountNumber} onChange={(e) => setBankInfo({ ...bankInfo, accountNumber: e.target.value })} placeholder="••••••••" />
-                  </div>
-                  <div>
-                    <Label>Routing Number</Label>
-                    <Input value={bankInfo.routingNumber} onChange={(e) => setBankInfo({ ...bankInfo, routingNumber: e.target.value })} placeholder="••••••••" />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {step === 4 && role === "brand" && (
               <div className="space-y-5">
                 <h2 className="font-display text-2xl font-bold text-foreground text-center">Choose Your Plan</h2>
                 <div className="grid grid-cols-2 gap-4">
@@ -339,25 +308,27 @@ const Signup = () => {
               </div>
             )}
 
-            {step === 4 && role === "creator" && (
+            {step === 4 && (
               <div className="space-y-5">
-                <h2 className="font-display text-2xl font-bold text-foreground">Payment Info</h2>
-                <p className="text-sm text-muted-foreground">Where should we send your earnings?</p>
-                <div className="space-y-4">
-                  <div>
-                    <Label>Bank Name</Label>
-                    <Input value={bankInfo.bankName} onChange={(e) => setBankInfo({ ...bankInfo, bankName: e.target.value })} placeholder="Your bank" />
+                <h2 className="font-display text-2xl font-bold text-foreground">Connect Payment</h2>
+                <p className="text-sm text-muted-foreground">
+                  {role === "brand" ? "Connect a payment service to pay creators." : "Connect a payment service to receive your earnings."}
+                </p>
+                <div className="p-8 rounded-2xl border-2 border-dashed border-border text-center space-y-4">
+                  <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
+                    <CreditCard className="w-8 h-8 text-primary" />
                   </div>
-                  <div>
-                    <Label>Account Number</Label>
-                    <Input value={bankInfo.accountNumber} onChange={(e) => setBankInfo({ ...bankInfo, accountNumber: e.target.value })} placeholder="••••••••" />
-                  </div>
-                  <div>
-                    <Label>Routing Number</Label>
-                    <Input value={bankInfo.routingNumber} onChange={(e) => setBankInfo({ ...bankInfo, routingNumber: e.target.value })} placeholder="••••••••" />
-                  </div>
+                  <h3 className="font-display text-lg font-semibold text-foreground">Payment Integration</h3>
+                  <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                    Third-party payment service integration coming soon. You'll be able to connect Stripe, PayPal, or your bank account here.
+                  </p>
+                  <Button variant="outline" disabled className="rounded-xl">
+                    Connect Payment Service
+                  </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">10% of earnings go to AllCall. No upfront fees.</p>
+                {role === "creator" && (
+                  <p className="text-xs text-muted-foreground">10% of earnings go to AllCall. No upfront fees.</p>
+                )}
               </div>
             )}
 
@@ -383,7 +354,7 @@ const Signup = () => {
                   transition={{ duration: 0.3 }}
                 />
               </div>
-              <p className="text-xs text-muted-foreground text-center mt-2">Step {step} of {totalSteps}</p>
+              <p className="text-xs text-primary-foreground/70 text-center mt-2">Step {step} of {totalSteps}</p>
             </div>
           )}
         </div>
