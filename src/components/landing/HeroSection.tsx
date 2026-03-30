@@ -1,12 +1,11 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Play, Sparkles, TrendingUp, Users } from "lucide-react";
+import { ArrowRight, Play, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 
 const HeroSection = () => {
   return (
     <section className="relative min-h-screen flex items-center pt-16 overflow-hidden">
-      {/* Background decoration */}
       <div className="absolute inset-0 bg-gradient-brand-subtle opacity-50" />
       <div className="absolute top-20 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
       <div className="absolute bottom-20 left-0 w-72 h-72 bg-primary/5 rounded-full blur-3xl" />
@@ -49,14 +48,14 @@ const HeroSection = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
           >
-            <Link to="/signup?role=brand">
+            <Link to="/signup?role=creator">
               <Button variant="hero" size="lg" className="text-base px-8 py-6 rounded-xl">
-                Join as a Brand <ArrowRight className="w-5 h-5 ml-1" />
+                Join as a Creator <ArrowRight className="w-5 h-5 ml-1" />
               </Button>
             </Link>
-            <Link to="/signup?role=creator">
+            <Link to="/signup?role=brand">
               <Button variant="hero-outline" size="lg" className="text-base px-8 py-6 rounded-xl">
-                Join as a Creator <ArrowRight className="w-5 h-5 ml-1" />
+                Join as a Brand <ArrowRight className="w-5 h-5 ml-1" />
               </Button>
             </Link>
           </motion.div>
@@ -70,11 +69,10 @@ const HeroSection = () => {
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
                 <Play className="w-4 h-4 text-primary ml-0.5" />
               </div>
-              Take a Tour
+              How It Works
             </Link>
           </motion.div>
         </div>
-
       </div>
     </section>
   );

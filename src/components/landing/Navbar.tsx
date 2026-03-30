@@ -18,9 +18,9 @@ const Navbar = () => {
 
         <div className="hidden md:flex items-center gap-6">
           <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Pricing</Link>
-          <Link to="/tour" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Take a Tour</Link>
+          <Link to="/tour" className="text-sm text-muted-foreground hover:text-foreground transition-colors">How It Works</Link>
           <Link to="/brand/login">
-            <Button variant="ghost" size="sm">Log In</Button>
+            <Button variant="outline" size="sm">Log In</Button>
           </Link>
           <Link to="/signup">
             <Button variant="hero" size="sm">Get Started</Button>
@@ -35,9 +35,9 @@ const Navbar = () => {
       {open && (
         <div className="md:hidden border-t border-border bg-background p-4 space-y-3">
           <Link to="/pricing" className="block text-sm text-muted-foreground" onClick={() => setOpen(false)}>Pricing</Link>
-          <Link to="/tour" className="block text-sm text-muted-foreground" onClick={() => setOpen(false)}>Take a Tour</Link>
+          <Link to="/tour" className="block text-sm text-muted-foreground" onClick={() => setOpen(false)}>How It Works</Link>
           <Link to="/brand/login" onClick={() => setOpen(false)}>
-            <Button variant="ghost" size="sm" className="w-full">Log In</Button>
+            <Button variant="outline" size="sm" className="w-full">Log In</Button>
           </Link>
           <Link to="/signup" onClick={() => setOpen(false)}>
             <Button variant="hero" size="sm" className="w-full">Get Started</Button>
