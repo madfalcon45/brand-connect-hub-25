@@ -6,15 +6,24 @@ import { Badge } from "@/components/ui/badge";
 import {
   BarChart3, Users, DollarSign, Settings, LogOut, Search, Filter,
   Star, TrendingUp, Link2, ExternalLink, ClipboardCopy, FileText, Eye, Check,
-  User, KeyRound, Moon, Sun, Crown, Info, Plus, CreditCard
+  User, KeyRound, Moon, Sun, Crown, Info, Plus, CreditCard, MoreHorizontal,
+  ChevronLeft, Upload, Video, XCircle
 } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { motion } from "framer-motion";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
-type Tab = "feed" | "active" | "applications" | "master-link" | "analytics" | "settings";
+type Tab = "feed" | "my-campaigns" | "master-link" | "portfolio" | "analytics" | "settings";
 
 const CreatorDashboard = () => {
   const navigate = useNavigate();
@@ -27,19 +36,21 @@ const CreatorDashboard = () => {
   const [masterLinkIds, setMasterLinkIds] = useState<number[]>([]);
   const [address, setAddress] = useState("");
   const [darkMode, setDarkMode] = useState(false);
-  const [joinConfirmation, setJoinConfirmation] = useState<{ product: string; link: string } | null>(null);
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
   const [masterLinkCopied, setMasterLinkCopied] = useState(false);
   const [showAddToMasterLink, setShowAddToMasterLink] = useState(false);
+  const [showJoinDialog, setShowJoinDialog] = useState(false);
+  const [joinDialogData, setJoinDialogData] = useState<{ product: string; link: string; code: string } | null>(null);
+  const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
+  const [portfolioLinks, setPortfolioLinks] = useState<string[]>([]);
+  const [newPortfolioLink, setNewPortfolioLink] = useState("");
 
-  // Settings from signup
   const [settingsName, setSettingsName] = useState(() => localStorage.getItem("allcall_creator_name") || "");
   const [settingsEmail, setSettingsEmail] = useState(() => localStorage.getItem("allcall_email") || "");
   const [settingsCountry, setSettingsCountry] = useState(() => localStorage.getItem("allcall_country") || "");
   const [settingsPassword, setSettingsPassword] = useState({ current: "", new: "", confirm: "" });
   const savedAddress = settingsCountry ? `123 Creator St, ${settingsCountry}` : "";
 
-  // Mock campaigns
   const availableCampaigns = [
     { id: 1, brand: "GlowBeauty", product: "Summer Glow Serum", category: "Beauty", platform: "TikTok", payMethod: "Hybrid: 5% + $5/100 clicks", signOnPay: 25, isPro: true, topPick: true, needsProduct: true, requireApply: true },
     { id: 2, brand: "FitPro", product: "ProFit Blender", category: "Health", platform: "Instagram", payMethod: "Commission: 8%", signOnPay: 0, isPro: false, topPick: true, needsProduct: false, requireApply: false },
@@ -55,9 +66,9 @@ const CreatorDashboard = () => {
 
   const sidebarItems: { key: Tab; label: string; icon: any }[] = [
     { key: "feed", label: "Campaigns", icon: Search },
-    { key: "active", label: "Active Campaigns", icon: Link2 },
-    { key: "applications", label: "Applications", icon: FileText },
+    { key: "my-campaigns", label: "My Campaigns", icon: Link2 },
     { key: "master-link", label: "Master Link", icon: ExternalLink },
+    { key: "portfolio", label: "Portfolio", icon: Video },
     { key: "analytics", label: "Analytics", icon: TrendingUp },
     { key: "settings", label: "Settings", icon: Settings },
   ];
@@ -78,17 +89,18 @@ const CreatorDashboard = () => {
     } else {
       const firstName = settingsName.split(" ")[0]?.toLowerCase() || "creator";
       const link = `https://allcall.link/${settingsName.toLowerCase().replace(/\s/g, "")}/${campaign.brand.toLowerCase()}`;
+      const code = `${firstName}${Math.floor(Math.random() * 100)}`;
       const newJoined = {
         id: campaign.id,
         brand: campaign.brand,
         product: campaign.product,
         link,
-        code: `${firstName}${Math.floor(Math.random() * 100)}`,
+        code,
         earnings: 0,
       };
       setJoinedCampaigns([...joinedCampaigns, newJoined]);
-      setJoinConfirmation({ product: campaign.product, link });
-      setTimeout(() => setJoinConfirmation(null), 5000);
+      setJoinDialogData({ product: campaign.product, link, code });
+      setShowJoinDialog(true);
     }
   };
 
@@ -111,6 +123,29 @@ const CreatorDashboard = () => {
     setTimeout(() => setMasterLinkCopied(false), 2000);
   };
 
+  const handleWithdraw = (id: number) => {
+    setJoinedCampaigns((prev) => prev.filter((c) => c.id !== id));
+    setMasterLinkIds((prev) => prev.filter((x) => x !== id));
+    setMenuOpenId(null);
+  };
+
+  const handleWithdrawApplication = (id: number) => {
+    setAppliedIds((prev) => prev.filter((x) => x !== id));
+    setMenuOpenId(null);
+  };
+
+  const handleRemoveFromMasterLink = (id: number) => {
+    setMasterLinkIds((prev) => prev.filter((x) => x !== id));
+    setMenuOpenId(null);
+  };
+
+  const handleAddPortfolioLink = () => {
+    if (newPortfolioLink.trim()) {
+      setPortfolioLinks([...portfolioLinks, newPortfolioLink.trim()]);
+      setNewPortfolioLink("");
+    }
+  };
+
   const handleSaveSettings = () => {
     localStorage.setItem("allcall_creator_name", settingsName);
     localStorage.setItem("allcall_email", settingsEmail);
@@ -128,27 +163,50 @@ const CreatorDashboard = () => {
   }, [darkMode]);
 
   const masterLinkName = settingsName.toLowerCase().replace(/\s/g, "") || "you";
+  const cardClass = "p-5 rounded-2xl bg-card border border-border shadow-card dark-green-outline";
+  const sectionCardClass = "bg-card border border-border rounded-2xl p-6 shadow-card dark-green-outline";
 
   return (
-    <div className="min-h-screen bg-muted/30 flex">
-      {/* Join confirmation toast */}
-      {joinConfirmation && (
-        <div className="fixed top-6 right-6 z-50 bg-primary text-primary-foreground px-5 py-4 rounded-xl shadow-lg space-y-2 max-w-sm">
-          <div className="flex items-center gap-2">
-            <Check className="w-4 h-4" />
-            <span className="text-sm font-medium">Joined {joinConfirmation.product}!</span>
-          </div>
-          <div className="flex items-center gap-2 bg-primary-foreground/10 rounded-lg px-3 py-1.5">
-            <span className="text-xs truncate flex-1">{joinConfirmation.link}</span>
-            <button onClick={() => handleCopyLink(joinConfirmation.link)} className="text-xs underline shrink-0">
-              {copiedLink === joinConfirmation.link ? "Copied!" : "Copy"}
-            </button>
-          </div>
-        </div>
-      )}
+    <div className="min-h-screen flex" style={{ background: 'linear-gradient(180deg, hsl(145, 30%, 95%) 0%, hsl(150, 20%, 98%) 50%, hsl(0, 0%, 100%) 100%)' }}>
+      {/* Join confirmation dialog */}
+      <Dialog open={showJoinDialog} onOpenChange={setShowJoinDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-foreground">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <Check className="w-5 h-5 text-primary" />
+              </div>
+              Campaign Joined!
+            </DialogTitle>
+            <DialogDescription>
+              You've successfully joined {joinDialogData?.product}. Here's your info:
+            </DialogDescription>
+          </DialogHeader>
+          {joinDialogData && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-muted/50 space-y-2">
+                <p className="text-xs text-muted-foreground">Your Affiliate Link</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-foreground truncate flex-1 font-mono">{joinDialogData.link}</p>
+                  <button onClick={() => handleCopyLink(joinDialogData.link)} className="text-primary hover:text-primary/80 shrink-0">
+                    {copiedLink === joinDialogData.link ? <Check className="w-4 h-4" /> : <ClipboardCopy className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              <div className="p-3 rounded-lg bg-muted/50 space-y-1">
+                <p className="text-xs text-muted-foreground">Your Creator Code</p>
+                <p className="text-lg font-mono font-bold text-primary">{joinDialogData.code}</p>
+              </div>
+              <Button variant="hero" className="w-full" onClick={() => { setShowJoinDialog(false); setTab("my-campaigns"); }}>
+                View My Campaigns
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
-      <aside className="w-64 bg-card border-r border-border p-4 flex flex-col shrink-0">
-        <Link to="/" className="flex items-center gap-2 mb-8">
+      <aside className="w-64 bg-card border-r border-border p-4 flex flex-col shrink-0 sticky top-0 h-screen overflow-y-auto">
+        <Link to="/" className="flex items-center gap-2 mb-8" onClick={() => document.documentElement.classList.remove("dark")}>
           <div className="w-8 h-8 rounded-lg bg-gradient-brand flex items-center justify-center">
             <span className="text-primary-foreground font-display font-bold text-sm">A</span>
           </div>
@@ -160,7 +218,7 @@ const CreatorDashboard = () => {
           {sidebarItems.map((item) => (
             <button
               key={item.key}
-              onClick={() => { setTab(item.key); setSelectedCampaign(null); }}
+              onClick={() => { setTab(item.key); setSelectedCampaign(null); setMenuOpenId(null); }}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
                 tab === item.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"
               }`}
@@ -195,7 +253,7 @@ const CreatorDashboard = () => {
               {filteredCampaigns.map((c) => {
                 const btnState = getButtonState(c);
                 return (
-                  <div key={c.id} className="p-5 rounded-2xl bg-card border border-border shadow-card hover:shadow-card-hover transition-shadow cursor-pointer" onClick={() => setSelectedCampaign(c.id)}>
+                  <div key={c.id} className={cardClass + " hover:shadow-card-hover transition-shadow cursor-pointer"} onClick={() => setSelectedCampaign(c.id)}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
                         <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-xl">{c.brand[0]}</div>
@@ -208,10 +266,10 @@ const CreatorDashboard = () => {
                                 <TooltipTrigger>
                                   <Crown className="w-5 h-5 text-warning" />
                                 </TooltipTrigger>
-                                <TooltipContent>Top Brand — Pro subscription with extended attribution and priority placement</TooltipContent>
+                                <TooltipContent>Top Brand — Pro subscription with extended creator attribution windows and priority placement</TooltipContent>
                               </Tooltip>
                             )}
-                            {c.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0 text-xs">Sign-On ${c.signOnPay}</Badge>}
+                            {c.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0 text-xs">${c.signOnPay} sign-on pay</Badge>}
                           </div>
                           <p className="text-sm text-muted-foreground">{c.brand} · {c.category} · {c.platform}</p>
                           <p className="text-xs text-muted-foreground mt-1">{c.payMethod}</p>
@@ -241,8 +299,8 @@ const CreatorDashboard = () => {
           const btnState = getButtonState(c);
           return (
             <div className="max-w-2xl space-y-6">
-              <button onClick={() => setSelectedCampaign(null)} className="text-sm text-primary hover:underline">← Back to campaigns</button>
-              <div className="bg-card border border-border rounded-2xl p-8 shadow-card space-y-6">
+              <button onClick={() => setSelectedCampaign(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to campaigns</button>
+              <div className={sectionCardClass + " space-y-6"}>
                 <div className="flex items-center gap-4">
                   <div className="w-20 h-20 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-3xl">{c.brand[0]}</div>
                   <div>
@@ -253,7 +311,7 @@ const CreatorDashboard = () => {
                           <TooltipTrigger>
                             <Crown className="w-5 h-5 text-warning" />
                           </TooltipTrigger>
-                          <TooltipContent>Top Brand — Pro subscription with extended attribution and priority placement</TooltipContent>
+                          <TooltipContent>Top Brand — Pro subscription with extended creator attribution windows and priority placement</TooltipContent>
                         </Tooltip>
                       )}
                     </div>
@@ -262,10 +320,10 @@ const CreatorDashboard = () => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 rounded-xl bg-muted/50"><p className="text-xs text-muted-foreground">Platform</p><p className="font-semibold text-foreground">{c.platform}</p></div>
-                  <div className="p-4 rounded-xl bg-muted/50"><p className="text-xs text-muted-foreground">Payment</p><p className="font-semibold text-foreground">{c.payMethod}</p></div>
-                  {c.signOnPay > 0 && <div className="p-4 rounded-xl bg-muted/50"><p className="text-xs text-muted-foreground">Sign-On Pay</p><p className="font-semibold text-primary">${c.signOnPay}</p></div>}
-                  <div className="p-4 rounded-xl bg-muted/50"><p className="text-xs text-muted-foreground">Product Required</p><p className="font-semibold text-foreground">{c.needsProduct ? "Yes" : "No"}</p></div>
+                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Platform</p><p className="font-semibold text-foreground">{c.platform}</p></div>
+                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Payment</p><p className="font-semibold text-foreground">{c.payMethod}</p></div>
+                  {c.signOnPay > 0 && <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Sign-On Pay</p><p className="font-semibold text-primary">${c.signOnPay}</p></div>}
+                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Product Required</p><p className="font-semibold text-foreground">{c.needsProduct ? "Yes" : "No"}</p></div>
                 </div>
 
                 {c.needsProduct && btnState === "available" && (
@@ -290,77 +348,108 @@ const CreatorDashboard = () => {
           );
         })()}
 
-        {tab === "active" && (
-          <div className="space-y-6">
-            <h1 className="font-display text-3xl font-bold text-foreground">Active Campaigns</h1>
-            {joinedCampaigns.length === 0 ? (
-              <p className="text-center text-muted-foreground py-12">No active campaigns yet. Join campaigns to get started!</p>
-            ) : (
-              <div className="space-y-4">
-                {joinedCampaigns.map((c) => (
-                  <div key={c.id} className="p-5 rounded-2xl bg-card border border-border shadow-card">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h3 className="font-display font-bold text-foreground">{c.product}</h3>
-                        <p className="text-sm text-muted-foreground">{c.brand}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-display text-lg font-bold text-primary">${c.earnings}</p>
-                        <p className="text-xs text-muted-foreground">earned</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-3">
-                      <div className="flex-1 p-3 rounded-lg bg-muted/50 flex items-center justify-between">
-                        <div>
-                          <p className="text-xs text-muted-foreground">Affiliate Link</p>
-                          <p className="text-sm text-foreground truncate">{c.link}</p>
-                        </div>
-                        <button className="text-primary hover:text-primary/80" onClick={() => handleCopyLink(c.link)}>
-                          {copiedLink === c.link ? <Check className="w-4 h-4" /> : <ClipboardCopy className="w-4 h-4" />}
-                        </button>
-                      </div>
-                      <div className="p-3 rounded-lg bg-muted/50">
-                        <p className="text-xs text-muted-foreground">Code</p>
-                        <p className="text-sm font-mono font-bold text-primary">{c.code}</p>
-                      </div>
-                    </div>
-                    {!masterLinkIds.includes(c.id) && (
-                      <Button variant="ghost" size="sm" className="mt-3" onClick={() => setMasterLinkIds([...masterLinkIds, c.id])}>
-                        + Add to Master Link
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        {tab === "my-campaigns" && (
+          <div className="space-y-8">
+            <h1 className="font-display text-3xl font-bold text-foreground">My Campaigns</h1>
 
-        {tab === "applications" && (
-          <div className="space-y-6">
-            <h1 className="font-display text-3xl font-bold text-foreground">My Applications</h1>
-            {appliedIds.length === 0 ? (
-              <p className="text-center text-muted-foreground py-12">No applications yet. Browse campaigns to get started!</p>
-            ) : (
-              <div className="space-y-3">
-                {appliedIds.map((id) => {
-                  const c = availableCampaigns.find((x) => x.id === id);
-                  if (!c) return null;
-                  return (
-                    <div key={id} className="p-5 rounded-2xl bg-card border border-border shadow-card flex items-center justify-between cursor-pointer hover:shadow-card-hover transition-shadow" onClick={() => { setTab("feed"); setSelectedCampaign(id); }}>
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold">{c.brand[0]}</div>
-                        <div>
-                          <h3 className="font-semibold text-foreground">{c.product}</h3>
-                          <p className="text-sm text-muted-foreground">{c.brand} · {c.category}</p>
+            {/* Active campaigns */}
+            <div className="space-y-4">
+              <h2 className="font-display text-xl font-semibold text-foreground">Active Campaigns</h2>
+              {joinedCampaigns.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No active campaigns yet. Join campaigns to get started!</p>
+              ) : (
+                <div className="space-y-3">
+                  {joinedCampaigns.map((c) => (
+                    <div key={c.id} className={cardClass}>
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="cursor-pointer" onClick={() => { setTab("feed"); setSelectedCampaign(c.id); }}>
+                          <h3 className="font-display font-bold text-foreground hover:text-primary transition-colors">{c.product}</h3>
+                          <p className="text-sm text-muted-foreground">{c.brand}</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <p className="font-display text-lg font-bold text-primary">${c.earnings}</p>
+                            <p className="text-xs text-muted-foreground">earned</p>
+                          </div>
+                          <div className="relative">
+                            <button onClick={() => setMenuOpenId(menuOpenId === c.id ? null : c.id)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-accent transition-colors">
+                              <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+                            </button>
+                            {menuOpenId === c.id && (
+                              <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="absolute right-0 top-10 bg-card border border-border rounded-xl shadow-lg z-20 w-48 overflow-hidden">
+                                <button onClick={() => handleWithdraw(c.id)} className="w-full text-left px-4 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors">Withdraw from Campaign</button>
+                                {masterLinkIds.includes(c.id) && (
+                                  <button onClick={() => handleRemoveFromMasterLink(c.id)} className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors">Remove from Master Link</button>
+                                )}
+                              </motion.div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <Badge variant="secondary">Pending</Badge>
+                      <div className="flex gap-3">
+                        <div className="flex-1 p-3 rounded-lg bg-muted/50 flex items-center justify-between dark-green-outline">
+                          <div>
+                            <p className="text-xs text-muted-foreground">Affiliate Link</p>
+                            <p className="text-sm text-foreground truncate">{c.link}</p>
+                          </div>
+                          <button className="text-primary hover:text-primary/80" onClick={() => handleCopyLink(c.link)}>
+                            {copiedLink === c.link ? <Check className="w-4 h-4" /> : <ClipboardCopy className="w-4 h-4" />}
+                          </button>
+                        </div>
+                        <div className="p-3 rounded-lg bg-muted/50 dark-green-outline">
+                          <p className="text-xs text-muted-foreground">Code</p>
+                          <p className="text-sm font-mono font-bold text-primary">{c.code}</p>
+                        </div>
+                      </div>
+                      {!masterLinkIds.includes(c.id) && (
+                        <Button variant="ghost" size="sm" className="mt-3" onClick={() => setMasterLinkIds([...masterLinkIds, c.id])}>
+                          + Add to Master Link
+                        </Button>
+                      )}
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Pending applications */}
+            <div className="space-y-4">
+              <h2 className="font-display text-xl font-semibold text-foreground">Pending Applications</h2>
+              {appliedIds.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No pending applications.</p>
+              ) : (
+                <div className="space-y-3">
+                  {appliedIds.map((id) => {
+                    const c = availableCampaigns.find((x) => x.id === id);
+                    if (!c) return null;
+                    return (
+                      <div key={id} className={cardClass + " flex items-center justify-between"}>
+                        <div className="flex items-center gap-4 cursor-pointer" onClick={() => { setTab("feed"); setSelectedCampaign(id); }}>
+                          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold">{c.brand[0]}</div>
+                          <div>
+                            <h3 className="font-semibold text-foreground hover:text-primary transition-colors">{c.product}</h3>
+                            <p className="text-sm text-muted-foreground">{c.brand} · {c.category}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Badge variant="secondary">Pending</Badge>
+                          <div className="relative">
+                            <button onClick={() => setMenuOpenId(menuOpenId === id + 1000 ? null : id + 1000)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-accent transition-colors">
+                              <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+                            </button>
+                            {menuOpenId === id + 1000 && (
+                              <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="absolute right-0 top-10 bg-card border border-border rounded-xl shadow-lg z-20 w-48 overflow-hidden">
+                                <button onClick={() => handleWithdrawApplication(id)} className="w-full text-left px-4 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors">Withdraw Application</button>
+                              </motion.div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -377,7 +466,7 @@ const CreatorDashboard = () => {
             </div>
             <p className="text-sm text-muted-foreground">One link for all your campaigns. Perfect for your bio.</p>
 
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-card">
+            <div className={sectionCardClass}>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <Link2 className="w-5 h-5 text-primary" />
@@ -398,13 +487,13 @@ const CreatorDashboard = () => {
               </div>
 
               {showAddToMasterLink && (
-                <div className="bg-card border border-border rounded-2xl p-4 shadow-card space-y-2">
+                <div className={sectionCardClass + " space-y-2"}>
                   <p className="text-sm font-medium text-foreground">Select campaigns to add:</p>
                   {joinedCampaigns.filter((c) => !masterLinkIds.includes(c.id)).length === 0 ? (
                     <p className="text-sm text-muted-foreground">All your active campaigns are already on your master link.</p>
                   ) : (
                     joinedCampaigns.filter((c) => !masterLinkIds.includes(c.id)).map((c) => (
-                      <div key={c.id} className="flex items-center justify-between p-3 rounded-lg border border-border">
+                      <div key={c.id} className="flex items-center justify-between p-3 rounded-lg border border-border dark-green-outline">
                         <div>
                           <p className="font-semibold text-foreground text-sm">{c.product}</p>
                           <p className="text-xs text-muted-foreground">{c.brand}</p>
@@ -417,12 +506,25 @@ const CreatorDashboard = () => {
               )}
 
               {joinedCampaigns.filter((c) => masterLinkIds.includes(c.id)).map((c) => (
-                <div key={c.id} className="p-4 rounded-xl bg-card border border-border flex items-center justify-between">
+                <div key={c.id} className="p-4 rounded-xl bg-card border border-border flex items-center justify-between dark-green-outline">
                   <div>
                     <p className="font-semibold text-foreground">{c.product}</p>
                     <p className="text-xs text-muted-foreground">{c.brand}</p>
                   </div>
-                  <Badge className="bg-success/10 text-primary border-0 text-xs">Added</Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-success/10 text-primary border-0 text-xs">Added</Badge>
+                    <div className="relative">
+                      <button onClick={() => setMenuOpenId(menuOpenId === c.id + 2000 ? null : c.id + 2000)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-accent transition-colors">
+                        <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+                      </button>
+                      {menuOpenId === c.id + 2000 && (
+                        <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="absolute right-0 top-10 bg-card border border-border rounded-xl shadow-lg z-20 w-48 overflow-hidden">
+                          <button onClick={() => handleWithdraw(c.id)} className="w-full text-left px-4 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors">Withdraw from Campaign</button>
+                          <button onClick={() => handleRemoveFromMasterLink(c.id)} className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors">Remove from Master Link</button>
+                        </motion.div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               ))}
               {joinedCampaigns.filter((c) => masterLinkIds.includes(c.id)).length === 0 && (
@@ -434,10 +536,45 @@ const CreatorDashboard = () => {
           </div>
         )}
 
+        {tab === "portfolio" && (
+          <div className="space-y-6 max-w-2xl">
+            <h1 className="font-display text-3xl font-bold text-foreground">Portfolio</h1>
+            <p className="text-sm text-muted-foreground">Showcase your best work. Brands can see this when they view your profile.</p>
+
+            <div className={sectionCardClass + " space-y-4"}>
+              <h2 className="font-display text-lg font-semibold text-foreground">Add Video / Link</h2>
+              <div className="flex gap-3">
+                <Input value={newPortfolioLink} onChange={(e) => setNewPortfolioLink(e.target.value)} placeholder="https://tiktok.com/@you/video123 or YouTube link" className="flex-1" />
+                <Button variant="hero" onClick={handleAddPortfolioLink}>Add</Button>
+              </div>
+            </div>
+
+            {portfolioLinks.length > 0 ? (
+              <div className="space-y-3">
+                {portfolioLinks.map((link, i) => (
+                  <div key={i} className={cardClass + " flex items-center justify-between"}>
+                    <div className="flex items-center gap-3">
+                      <Video className="w-5 h-5 text-primary" />
+                      <a href={link} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline truncate max-w-md">{link}</a>
+                    </div>
+                    <button onClick={() => setPortfolioLinks(portfolioLinks.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-destructive">
+                      <XCircle className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-8 rounded-2xl border-2 border-dashed border-border text-center space-y-3">
+                <Video className="w-10 h-10 text-muted-foreground mx-auto" />
+                <p className="text-sm text-muted-foreground">No portfolio items yet. Add links to your best content above.</p>
+              </div>
+            )}
+          </div>
+        )}
+
         {tab === "analytics" && (
           <div className="space-y-6">
             <h1 className="font-display text-3xl font-bold text-foreground">Analytics</h1>
-            <p className="text-sm text-muted-foreground">Customize which metrics you want to see.</p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
                 { label: "Total Earnings", value: `$${joinedCampaigns.reduce((s, c) => s + c.earnings, 0)}` },
@@ -447,7 +584,7 @@ const CreatorDashboard = () => {
                 { label: "Pending Earnings", value: "$0" },
                 { label: "AllCall Fee (10%)", value: `$${(joinedCampaigns.reduce((s, c) => s + c.earnings, 0) * 0.1).toFixed(2)}` },
               ].map((s) => (
-                <div key={s.label} className="p-5 rounded-2xl bg-card border border-border shadow-card">
+                <div key={s.label} className={cardClass}>
                   <p className="text-sm text-muted-foreground">{s.label}</p>
                   <p className="font-display text-2xl font-bold text-foreground">{s.value}</p>
                 </div>
@@ -460,7 +597,7 @@ const CreatorDashboard = () => {
           <div className="space-y-6 max-w-lg">
             <h1 className="font-display text-3xl font-bold text-foreground">Settings</h1>
 
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-4">
+            <div className={sectionCardClass + " space-y-4"}>
               <div className="flex items-center gap-2">
                 <User className="w-5 h-5 text-primary" />
                 <h2 className="font-display text-lg font-semibold text-foreground">Account Details</h2>
@@ -478,7 +615,7 @@ const CreatorDashboard = () => {
               <div><label className="text-sm font-medium text-foreground">Address (for product delivery)</label><Input value={savedAddress} readOnly /></div>
             </div>
 
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-4">
+            <div className={sectionCardClass + " space-y-4"}>
               <div className="flex items-center gap-2">
                 <KeyRound className="w-5 h-5 text-primary" />
                 <h2 className="font-display text-lg font-semibold text-foreground">Change Password</h2>
@@ -488,7 +625,7 @@ const CreatorDashboard = () => {
               <div><label className="text-sm font-medium text-foreground">Confirm New Password</label><Input type="password" value={settingsPassword.confirm} onChange={(e) => setSettingsPassword({ ...settingsPassword, confirm: e.target.value })} /></div>
             </div>
 
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-4">
+            <div className={sectionCardClass + " space-y-4"}>
               <div className="flex items-center gap-2">
                 <CreditCard className="w-5 h-5 text-primary" />
                 <h2 className="font-display text-lg font-semibold text-foreground">Payment Info</h2>
@@ -500,7 +637,7 @@ const CreatorDashboard = () => {
               </div>
             </div>
 
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-4">
+            <div className={sectionCardClass + " space-y-4"}>
               <div className="flex items-center gap-2">
                 {darkMode ? <Moon className="w-5 h-5 text-primary" /> : <Sun className="w-5 h-5 text-primary" />}
                 <h2 className="font-display text-lg font-semibold text-foreground">Appearance</h2>
