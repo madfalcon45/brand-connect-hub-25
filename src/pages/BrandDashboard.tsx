@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import {
   BarChart3, Plus, Users, DollarSign, Settings, Eye, LogOut, Search,
   Bell, Lock, TrendingUp, Filter, Send, Check, X as XIcon,
-  Package, Link2, MoreHorizontal, Star, Info, Moon, Sun, User, KeyRound, Crown, CreditCard
+  Package, Link2, MoreHorizontal, Star, Info, Moon, Sun, User, KeyRound, Crown, CreditCard,
+  ChevronLeft, Image as ImageIcon, AlertCircle
 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
@@ -21,7 +22,6 @@ const brandCategories = [
   "Education", "Finance", "Entertainment", "Automotive", "Pet Products", "Other",
 ];
 
-// Map brand categories to campaign categories
 const categoryMap: Record<string, string> = {
   "Fashion & Apparel": "Fashion",
   "Beauty & Skincare": "Beauty",
@@ -48,6 +48,9 @@ type Campaign = {
   requireApply: boolean;
   activeCreators: { name: string; platform: string; followers: string; clicks: number; sales: number; earnings: number }[];
   images?: string[];
+  notes?: string;
+  discount?: string;
+  creatorCode?: boolean;
 };
 
 type Application = {
@@ -75,26 +78,32 @@ const BrandDashboard = () => {
   const [darkMode, setDarkMode] = useState(false);
   const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null);
   const [showLaunchSuccess, setShowLaunchSuccess] = useState(false);
+  const [showLaunchPreview, setShowLaunchPreview] = useState(false);
   const [launchedCampaignName, setLaunchedCampaignName] = useState("");
   const [showProGate, setShowProGate] = useState(false);
+  const [editingCampaignId, setEditingCampaignId] = useState<number | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
+  const [selectedCreatorDetail, setSelectedCreatorDetail] = useState<string | null>(null);
+  const [showMyCreators, setShowMyCreators] = useState(false);
+  const [attributeError, setAttributeError] = useState(false);
+  const [attributeCreator, setAttributeCreator] = useState("");
+  const [attributeType, setAttributeType] = useState<"sales" | "clicks" | "dollars">("sales");
+  const [attributeValue, setAttributeValue] = useState("");
 
-  // 3-dot menu
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
 
-  // Creator list filters
   const [creatorSearch, setCreatorSearch] = useState("");
   const [showCreatorFilters, setShowCreatorFilters] = useState(false);
   const [creatorFilterPlatform, setCreatorFilterPlatform] = useState<string[]>([]);
   const [creatorFilterMinFollowers, setCreatorFilterMinFollowers] = useState(0);
+  const [creatorFilterFollowersInput, setCreatorFilterFollowersInput] = useState("0");
   const [invitedCreators, setInvitedCreators] = useState<string[]>([]);
 
-  // Settings state from signup
   const [settingsName, setSettingsName] = useState(() => localStorage.getItem("allcall_brand_name") || "");
   const [settingsEmail, setSettingsEmail] = useState(() => localStorage.getItem("allcall_email") || "");
   const [settingsCountry, setSettingsCountry] = useState(() => localStorage.getItem("allcall_country") || "");
   const [settingsPassword, setSettingsPassword] = useState({ current: "", new: "", confirm: "" });
 
-  // Saved brand categories
   const savedCategories: string[] = (() => {
     try { return JSON.parse(localStorage.getItem("allcall_categories") || "[]"); } catch { return []; }
   })();
@@ -112,21 +121,34 @@ const BrandDashboard = () => {
     followerFilterType: [] as string[],
     filterCategories: [] as string[],
     signOnPay: "",
+    adPlatforms: [] as string[],
   });
 
-  // Invite confirmation
   const [inviteConfirmation, setInviteConfirmation] = useState<string | null>(null);
 
-  // Recommended creators (mock AI)
   const allCreators = [
-    { name: "Emily Chen", platform: "TikTok", followers: "89K", followersNum: 89000, category: "Beauty", match: 95 },
-    { name: "Jake Torres", platform: "Instagram", followers: "62K", followersNum: 62000, category: "Health", match: 88 },
-    { name: "Priya Sharma", platform: "YouTube", followers: "145K", followersNum: 145000, category: "Tech", match: 82 },
-    { name: "Maya Lee", platform: "TikTok", followers: "34K", followersNum: 34000, category: "Fashion", match: 78 },
-    { name: "Carlos R.", platform: "Instagram", followers: "21K", followersNum: 21000, category: "Fitness", match: 72 },
+    { name: "Emily Chen", platform: "TikTok", followers: "89K", followersNum: 89000, category: "Beauty", match: 95, bio: "Beauty and skincare content creator sharing honest reviews and tutorials.", portfolio: ["https://tiktok.com/@emilychen/video1"], workedWith: [] as number[] },
+    { name: "Jake Torres", platform: "Instagram", followers: "62K", followersNum: 62000, category: "Health", match: 88, bio: "Fitness enthusiast and wellness advocate. Sharing healthy lifestyle tips.", portfolio: [], workedWith: [] as number[] },
+    { name: "Priya Sharma", platform: "YouTube", followers: "145K", followersNum: 145000, category: "Tech", match: 82, bio: "Tech reviewer covering the latest gadgets and software.", portfolio: ["https://youtube.com/priyatech/review1"], workedWith: [] as number[] },
+    { name: "Maya Lee", platform: "TikTok", followers: "34K", followersNum: 34000, category: "Fashion", match: 78, bio: "Fashion and style creator focusing on affordable outfits and trends.", portfolio: [], workedWith: [] as number[] },
+    { name: "Carlos R.", platform: "Instagram", followers: "21K", followersNum: 21000, category: "Fitness", match: 72, bio: "Personal trainer and nutrition coach creating workout content.", portfolio: [], workedWith: [] as number[] },
   ];
 
+  // Check which creators are working with / have worked with brand
+  const getCreatorRelation = (creatorName: string): "active" | "past" | null => {
+    for (const c of campaigns) {
+      if (c.activeCreators.some((cr) => cr.name === creatorName)) {
+        return c.status === "active" ? "active" : "past";
+      }
+    }
+    return null;
+  };
+
   const filteredCreators = allCreators.filter((cr) => {
+    if (showMyCreators) {
+      const relation = getCreatorRelation(cr.name);
+      if (relation !== "active") return false;
+    }
     if (creatorSearch && !cr.name.toLowerCase().includes(creatorSearch.toLowerCase())) return false;
     if (creatorFilterPlatform.length > 0 && !creatorFilterPlatform.includes(cr.platform)) return false;
     if (creatorFilterMinFollowers > 0 && cr.followersNum < creatorFilterMinFollowers) return false;
@@ -143,14 +165,6 @@ const BrandDashboard = () => {
     { key: "creator-view", label: "Creator View", icon: Eye },
     { key: "settings", label: "Settings", icon: Settings },
   ];
-
-  const followerStep = (val: number, direction: "up" | "down") => {
-    if (val < 1000) return direction === "up" ? val + 100 : Math.max(0, val - 100);
-    if (val < 10000) return direction === "up" ? val + 1000 : val - 1000;
-    if (val < 100000) return direction === "up" ? val + 10000 : val - 10000;
-    if (val < 1000000) return direction === "up" ? val + 100000 : val - 100000;
-    return direction === "up" ? val + 1000000 : val - 1000000;
-  };
 
   const toggleFollowerType = (type: string) => {
     if (type === "total") {
@@ -202,28 +216,47 @@ const BrandDashboard = () => {
     setCampaignForm({ ...campaignForm, photos: campaignForm.photos.filter((_, i) => i !== index) });
   };
 
-  const handleLaunchCampaign = () => {
-    const newCampaign: Campaign = {
-      id: Date.now(),
-      name: campaignForm.name || "Untitled Campaign",
-      category: campaignForm.category || "General",
-      status: "active",
-      signOnPay: campaignForm.requireApply ? (Number(campaignForm.signOnPay) || 0) : 0,
-      description: campaignForm.description,
-      link: campaignForm.link,
-      payMethod: campaignForm.payMethod === "hybrid"
-        ? `Hybrid: ${campaignForm.commissionRate}% + $${campaignForm.flatRate}/${campaignForm.flatPer} clicks`
-        : campaignForm.payMethod === "commission"
-          ? `Commission: ${campaignForm.commissionRate}%`
-          : `Flat: $${campaignForm.flatRate}/${campaignForm.flatPer} clicks`,
-      platforms: campaignForm.platforms,
-      requireApply: campaignForm.requireApply,
-      activeCreators: [],
-      images: campaignForm.photos,
-    };
-    setCampaigns((prev) => [...prev, newCampaign]);
+  const buildCampaignFromForm = (): Campaign => ({
+    id: editingCampaignId || Date.now(),
+    name: campaignForm.name || "Untitled Campaign",
+    category: campaignForm.category || "General",
+    status: "active",
+    signOnPay: campaignForm.requireApply ? (Number(campaignForm.signOnPay) || 0) : 0,
+    description: campaignForm.description,
+    link: campaignForm.link,
+    payMethod: campaignForm.payMethod === "hybrid"
+      ? `Hybrid: ${campaignForm.commissionRate}% + $${campaignForm.flatRate}/${campaignForm.flatPer} clicks`
+      : campaignForm.payMethod === "commission"
+        ? `Commission: ${campaignForm.commissionRate}%`
+        : `Flat: $${campaignForm.flatRate}/${campaignForm.flatPer} clicks`,
+    platforms: campaignForm.platforms,
+    requireApply: campaignForm.requireApply,
+    activeCreators: [],
+    images: campaignForm.photos,
+    notes: campaignForm.notes,
+    discount: campaignForm.discount,
+    creatorCode: campaignForm.creatorCode,
+  });
+
+  const handleShowLaunchPreview = () => {
+    setShowLaunchPreview(true);
+  };
+
+  const handleConfirmLaunch = () => {
+    const newCampaign = buildCampaignFromForm();
+    if (editingCampaignId) {
+      setCampaigns((prev) => prev.map((c) => c.id === editingCampaignId ? { ...newCampaign, activeCreators: c.activeCreators } : c));
+      setEditingCampaignId(null);
+    } else {
+      setCampaigns((prev) => [...prev, newCampaign]);
+    }
     setLaunchedCampaignName(newCampaign.name);
+    setShowLaunchPreview(false);
     setShowLaunchSuccess(true);
+    resetCampaignForm();
+  };
+
+  const resetCampaignForm = () => {
     setCampaignForm({
       name: "", category: defaultCampaignCategory, description: "", link: "", notes: "",
       creatorCode: true, discount: "10",
@@ -235,7 +268,38 @@ const BrandDashboard = () => {
       followerFilterType: [],
       filterCategories: [],
       signOnPay: "",
+      adPlatforms: [],
     });
+  };
+
+  const handleLaunchCampaign = () => {
+    handleShowLaunchPreview();
+  };
+
+  const handleEditCampaign = (campaign: Campaign) => {
+    setEditingCampaignId(campaign.id);
+    setCampaignForm({
+      name: campaign.name,
+      category: campaign.category,
+      description: campaign.description,
+      link: campaign.link,
+      notes: campaign.notes || "",
+      creatorCode: campaign.creatorCode ?? true,
+      discount: campaign.discount || "10",
+      payMethod: (campaign.payMethod.startsWith("Hybrid") ? "hybrid" : campaign.payMethod.startsWith("Commission") ? "commission" : "flat") as any,
+      commissionRate: "5", flatRate: "5", flatPer: "100",
+      requireApply: campaign.requireApply,
+      paidProduct: false, productType: "physical",
+      photos: campaign.images || [],
+      platforms: campaign.platforms,
+      filterFollowers: false, minFollowers: 1000,
+      followerFilterType: [],
+      filterCategories: [],
+      signOnPay: campaign.signOnPay > 0 ? String(campaign.signOnPay) : "",
+      adPlatforms: [],
+    });
+    setTab("new-campaign");
+    setMenuOpenId(null);
   };
 
   const handleInviteCreator = (name: string) => {
@@ -262,28 +326,44 @@ const BrandDashboard = () => {
     }
     setTab(key);
     setShowLaunchSuccess(false);
+    setShowLaunchPreview(false);
     setMenuOpenId(null);
+    setSelectedCampaignId(null);
+    setSelectedCreatorDetail(null);
+    setEditingCampaignId(null);
   };
 
   const handleDeleteCampaign = (id: number) => {
-    setCampaigns((prev) => prev.filter((c) => c.id !== id));
+    setShowDeleteConfirm(id);
     setMenuOpenId(null);
+  };
+
+  const confirmDelete = (id: number) => {
+    setCampaigns((prev) => prev.filter((c) => c.id !== id));
+    setShowDeleteConfirm(null);
   };
 
   const handleDeactivateCampaign = (id: number) => {
-    setCampaigns((prev) => prev.map((c) => c.id === id ? { ...c, status: "deactivated" } : c));
+    setCampaigns((prev) => prev.map((c) => c.id === id ? { ...c, status: c.status === "active" ? "deactivated" : "active" } : c));
     setMenuOpenId(null);
   };
 
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
+  const handleAttributeSales = () => {
+    if (!attributeCreator) {
+      setAttributeError(true);
+      return;
     }
+    setAttributeError(false);
+    // Would attribute in real app
+    setAttributeCreator("");
+    setAttributeValue("");
+  };
+
+  useEffect(() => {
+    if (darkMode) document.documentElement.classList.add("dark");
+    else document.documentElement.classList.remove("dark");
   }, [darkMode]);
 
-  // Example campaigns for creator view
   const exampleCreatorCampaigns = [
     { name: "Hydra Glow Moisturizer", brand: "GlowSkin Co.", category: "Beauty", platform: "TikTok", payMethod: "Hybrid: 6% + $8/100 clicks", signOnPay: 30, isPro: true, requireApply: true },
     { name: "ProFit Protein Shake", brand: "FitLife Labs", category: "Health", platform: "Instagram", payMethod: "Commission: 10%", signOnPay: 0, isPro: false, requireApply: false },
@@ -293,8 +373,38 @@ const BrandDashboard = () => {
     { name: "Wireless Charger Pad", brand: "ChargePro", category: "Tech", platform: "YouTube", payMethod: "Flat: $12/100 clicks", signOnPay: 0, isPro: false, requireApply: true },
   ];
 
+  const cardClass = "p-5 rounded-2xl bg-card border border-border shadow-card dark-green-outline";
+  const sectionCardClass = "bg-card border border-border rounded-2xl p-6 shadow-card dark-green-outline";
+
   return (
-    <div className="min-h-screen bg-muted/30 flex">
+    <div className="min-h-screen flex" style={{ background: 'linear-gradient(180deg, hsl(145, 30%, 95%) 0%, hsl(150, 20%, 98%) 50%, hsl(0, 0%, 100%) 100%)' }}>
+      {/* Delete confirmation */}
+      {showDeleteConfirm !== null && (
+        <div className="fixed inset-0 z-50 bg-foreground/50 flex items-center justify-center" onClick={() => setShowDeleteConfirm(null)}>
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-card border border-border rounded-2xl p-8 max-w-sm text-center shadow-lg" onClick={(e) => e.stopPropagation()}>
+            <AlertCircle className="w-10 h-10 text-destructive mx-auto mb-4" />
+            <h3 className="font-display text-xl font-bold text-foreground mb-2">Delete Campaign?</h3>
+            <p className="text-sm text-muted-foreground mb-6">This action cannot be undone. The campaign and all its data will be permanently deleted.</p>
+            <div className="flex gap-3 justify-center">
+              <Button variant="destructive" onClick={() => confirmDelete(showDeleteConfirm)}>Delete Permanently</Button>
+              <Button variant="outline" onClick={() => setShowDeleteConfirm(null)}>Cancel</Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Attribute error popup */}
+      {attributeError && (
+        <div className="fixed inset-0 z-50 bg-foreground/50 flex items-center justify-center" onClick={() => setAttributeError(false)}>
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-card border border-border rounded-2xl p-8 max-w-sm text-center shadow-lg" onClick={(e) => e.stopPropagation()}>
+            <AlertCircle className="w-10 h-10 text-warning mx-auto mb-4" />
+            <h3 className="font-display text-xl font-bold text-foreground mb-2">Select a Creator</h3>
+            <p className="text-sm text-muted-foreground mb-6">Please select a creator before attributing.</p>
+            <Button variant="hero" onClick={() => setAttributeError(false)}>OK</Button>
+          </motion.div>
+        </div>
+      )}
+
       {/* Pro gate modal */}
       {showProGate && (
         <div className="fixed inset-0 z-50 bg-foreground/50 flex items-center justify-center" onClick={() => setShowProGate(false)}>
@@ -311,8 +421,8 @@ const BrandDashboard = () => {
       )}
 
       {/* Sidebar */}
-      <aside className="w-64 bg-card border-r border-border p-4 flex flex-col shrink-0">
-        <Link to="/" className="flex items-center gap-2 mb-8">
+      <aside className="w-64 bg-card border-r border-border p-4 flex flex-col shrink-0 sticky top-0 h-screen overflow-y-auto">
+        <Link to="/" className="flex items-center gap-2 mb-8" onClick={() => document.documentElement.classList.remove("dark")}>
           <div className="w-8 h-8 rounded-lg bg-gradient-brand flex items-center justify-center">
             <span className="text-primary-foreground font-display font-bold text-sm">A</span>
           </div>
@@ -343,7 +453,6 @@ const BrandDashboard = () => {
 
       {/* Main content */}
       <main className="flex-1 p-8 overflow-y-auto">
-        {/* Invite confirmation toast */}
         {inviteConfirmation && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
@@ -366,7 +475,7 @@ const BrandDashboard = () => {
                 { label: "Total Revenue", value: "$0", icon: TrendingUp },
                 { label: "Spent on Creators", value: "$0", icon: DollarSign },
               ].map((stat) => (
-                <div key={stat.label} className="p-5 rounded-2xl bg-card border border-border shadow-card">
+                <div key={stat.label} className={cardClass}>
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
                       <stat.icon className="w-5 h-5 text-primary" />
@@ -378,7 +487,7 @@ const BrandDashboard = () => {
               ))}
             </div>
 
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-card">
+            <div className={sectionCardClass}>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-display text-xl font-bold text-foreground">Campaigns</h2>
                 <Button variant="hero" size="sm" onClick={() => setTab("new-campaign")}>
@@ -390,7 +499,7 @@ const BrandDashboard = () => {
               ) : (
                 <div className="space-y-3">
                   {campaigns.map((c) => (
-                    <div key={c.id} className="flex items-center justify-between p-4 rounded-xl border border-border hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => { setSelectedCampaignId(c.id); }}>
+                    <div key={c.id} className="flex items-center justify-between p-4 rounded-xl border border-border hover:bg-accent/50 transition-colors cursor-pointer dark-green-outline" onClick={() => { setSelectedCampaignId(c.id); }}>
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold">
                           {c.name[0]}
@@ -398,7 +507,7 @@ const BrandDashboard = () => {
                         <div>
                           <div className="flex items-center gap-2">
                             <p className="font-semibold text-foreground">{c.name}</p>
-                            {c.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0 text-xs">Sign-On ${c.signOnPay}</Badge>}
+                            {c.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0 text-xs">${c.signOnPay} sign-on pay</Badge>}
                           </div>
                           <p className="text-sm text-muted-foreground">{c.category} · {c.activeCreators.length} creators</p>
                         </div>
@@ -423,14 +532,14 @@ const BrandDashboard = () => {
             ) : (
               <div className="space-y-3">
                 {campaigns.map((c) => (
-                  <div key={c.id} className="p-5 rounded-2xl bg-card border border-border shadow-card hover:shadow-card-hover transition-shadow relative">
+                  <div key={c.id} className={`${cardClass} hover:shadow-card-hover transition-shadow relative`}>
                     <div className="flex items-center justify-between cursor-pointer" onClick={() => setSelectedCampaignId(c.id)}>
                       <div className="flex items-center gap-4">
                         <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-xl">{c.name[0]}</div>
                         <div>
                           <div className="flex items-center gap-2">
                             <h3 className="font-display font-bold text-lg text-foreground">{c.name}</h3>
-                            {c.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0">Sign-On ${c.signOnPay}</Badge>}
+                            {c.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0">${c.signOnPay} sign-on pay</Badge>}
                           </div>
                           <p className="text-sm text-muted-foreground">{c.category} · {c.activeCreators.length} active creators · {c.payMethod}</p>
                         </div>
@@ -443,7 +552,7 @@ const BrandDashboard = () => {
                           </button>
                           {menuOpenId === c.id && (
                             <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="absolute right-0 top-10 bg-card border border-border rounded-xl shadow-lg z-20 w-44 overflow-hidden">
-                              <button onClick={() => { setSelectedCampaignId(c.id); setMenuOpenId(null); }} className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors">Edit Campaign</button>
+                              <button onClick={() => handleEditCampaign(c)} className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors">Edit Campaign</button>
                               <button onClick={() => handleDeactivateCampaign(c.id)} className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors">{c.status === "active" ? "Deactivate" : "Activate"}</button>
                               <button onClick={() => handleDeleteCampaign(c.id)} className="w-full text-left px-4 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors">Delete Campaign</button>
                             </motion.div>
@@ -458,13 +567,13 @@ const BrandDashboard = () => {
           </div>
         )}
 
-        {/* Campaign detail with active creators */}
+        {/* Campaign detail */}
         {(tab === "campaigns" || tab === "dashboard") && selectedCampaignId && (() => {
           const campaign = campaigns.find((c) => c.id === selectedCampaignId);
           if (!campaign) return null;
           return (
             <div className="space-y-6">
-              <button onClick={() => setSelectedCampaignId(null)} className="text-sm text-primary hover:underline">← Back</button>
+              <button onClick={() => setSelectedCampaignId(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back</button>
               <div className="flex items-center gap-4 mb-4">
                 <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-2xl">{campaign.name[0]}</div>
                 <div>
@@ -474,14 +583,32 @@ const BrandDashboard = () => {
                 <Badge className="ml-auto" variant={campaign.status === "active" ? "default" : "secondary"}>{campaign.status}</Badge>
               </div>
 
-              <div className="bg-card border border-border rounded-2xl p-6 shadow-card">
+              {/* Campaign details */}
+              <div className={sectionCardClass + " space-y-4"}>
+                <h2 className="font-display text-lg font-semibold text-foreground">Campaign Details</h2>
+                {campaign.description && <p className="text-sm text-muted-foreground">{campaign.description}</p>}
+                {campaign.link && <p className="text-sm text-primary break-all">{campaign.link}</p>}
+                {campaign.signOnPay > 0 && <p className="text-sm text-foreground">Sign-on Pay: <span className="font-semibold text-primary">${campaign.signOnPay}</span></p>}
+                {campaign.notes && <p className="text-sm text-muted-foreground italic">{campaign.notes}</p>}
+                {campaign.images && campaign.images.length > 0 && (
+                  <div className="flex gap-3 flex-wrap">
+                    {campaign.images.map((img, i) => (
+                      <div key={i} className="w-24 h-24 rounded-xl border border-border overflow-hidden">
+                        <img src={img} alt={`Campaign ${i + 1}`} className="w-full h-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className={sectionCardClass}>
                 <h2 className="font-display text-lg font-semibold text-foreground mb-4">Active Creators ({campaign.activeCreators.length})</h2>
                 {campaign.activeCreators.length === 0 ? (
                   <p className="text-muted-foreground text-sm py-6 text-center">No creators yet. Accept applications or invite creators to get started.</p>
                 ) : (
                   <div className="space-y-3">
                     {campaign.activeCreators.map((cr, i) => (
-                      <div key={i} className="flex items-center justify-between p-4 rounded-xl border border-border">
+                      <div key={i} className="flex items-center justify-between p-4 rounded-xl border border-border dark-green-outline">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">{cr.name[0]}</div>
                           <div>
@@ -503,11 +630,11 @@ const BrandDashboard = () => {
           );
         })()}
 
-        {tab === "new-campaign" && !showLaunchSuccess && (
+        {tab === "new-campaign" && !showLaunchSuccess && !showLaunchPreview && (
           <div className="max-w-2xl space-y-8" style={{ background: 'linear-gradient(180deg, hsl(145, 30%, 95%) 0%, transparent 100%)', margin: '-2rem', padding: '2rem' }}>
-            <h1 className="font-display text-3xl font-bold text-foreground">Create Campaign</h1>
+            <h1 className="font-display text-3xl font-bold text-foreground">{editingCampaignId ? "Edit Campaign" : "Create Campaign"}</h1>
 
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-6">
+            <div className={sectionCardClass + " space-y-6"}>
               <div className="flex items-center gap-2">
                 <h2 className="font-display text-lg font-semibold text-foreground">Product Information</h2>
                 <Tooltip><TooltipTrigger><Info className="w-4 h-4 text-muted-foreground" /></TooltipTrigger><TooltipContent>Basic details about the product you want creators to promote</TooltipContent></Tooltip>
@@ -532,17 +659,14 @@ const BrandDashboard = () => {
               </div>
             </div>
 
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-6">
+            <div className={sectionCardClass + " space-y-6"}>
               <h2 className="font-display text-lg font-semibold text-foreground">Campaign Images</h2>
               <p className="text-xs text-muted-foreground">Upload up to 3 images (logo, product photos, etc.)</p>
               <div className="flex gap-4 flex-wrap">
                 {campaignForm.photos.map((url, i) => (
                   <div key={i} className="relative w-24 h-24 rounded-xl border border-border overflow-hidden group">
                     <img src={url} alt={`Upload ${i + 1}`} className="w-full h-full object-cover" />
-                    <button
-                      onClick={() => removePhoto(i)}
-                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
+                    <button onClick={() => removePhoto(i)} className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                       <XIcon className="w-3 h-3" />
                     </button>
                   </div>
@@ -557,7 +681,7 @@ const BrandDashboard = () => {
               </div>
             </div>
 
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-4">
+            <div className={sectionCardClass + " space-y-4"}>
               <div className="flex items-center gap-2">
                 <h2 className="font-display text-lg font-semibold text-foreground">Application Settings</h2>
                 <Tooltip><TooltipTrigger><Info className="w-4 h-4 text-muted-foreground" /></TooltipTrigger><TooltipContent>Choose whether creators need your approval or can join instantly</TooltipContent></Tooltip>
@@ -583,7 +707,7 @@ const BrandDashboard = () => {
             </div>
 
             {campaignForm.requireApply && (
-              <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-6">
+              <div className={sectionCardClass + " space-y-6"}>
                 <div className="flex items-center gap-2">
                   <h2 className="font-display text-lg font-semibold text-foreground">Sign-On Pay</h2>
                   <Tooltip><TooltipTrigger><Info className="w-4 h-4 text-muted-foreground" /></TooltipTrigger><TooltipContent>Optional bonus paid to creators when their application is approved. Only available with creator approval mode.</TooltipContent></Tooltip>
@@ -595,7 +719,7 @@ const BrandDashboard = () => {
               </div>
             )}
 
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-6">
+            <div className={sectionCardClass + " space-y-6"}>
               <div className="flex items-center gap-2">
                 <h2 className="font-display text-lg font-semibold text-foreground">Creator Code</h2>
                 <Tooltip><TooltipTrigger><Info className="w-4 h-4 text-muted-foreground" /></TooltipTrigger><TooltipContent>Discount codes help track sales more accurately than links alone</TooltipContent></Tooltip>
@@ -608,12 +732,12 @@ const BrandDashboard = () => {
                 <div>
                   <label className="text-sm font-medium text-foreground">Discount %</label>
                   <Input value={campaignForm.discount} onChange={(e) => setCampaignForm({ ...campaignForm, discount: e.target.value })} placeholder="10" className="max-w-[100px]" />
-                  <p className="text-xs text-muted-foreground mt-2">Creators will receive a unique code like <span className="font-mono font-semibold text-primary">dylanfinds{campaignForm.discount || "10"}</span> or <span className="font-mono font-semibold text-primary">sarah{campaignForm.discount || "10"}</span></p>
+                  <p className="text-xs text-muted-foreground mt-2">Creators will receive a unique code like <span className="font-mono font-semibold text-primary">dylanfinds{campaignForm.discount || "10"}</span> or <span className="font-mono font-semibold text-primary">sarah{campaignForm.discount ? `15` : "15"}</span></p>
                 </div>
               )}
             </div>
 
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-6">
+            <div className={sectionCardClass + " space-y-6"}>
               <div className="flex items-center gap-2">
                 <h2 className="font-display text-lg font-semibold text-foreground">Payment Method</h2>
                 <Tooltip><TooltipTrigger><Info className="w-4 h-4 text-muted-foreground" /></TooltipTrigger><TooltipContent>Choose how creators will earn from this campaign</TooltipContent></Tooltip>
@@ -629,75 +753,69 @@ const BrandDashboard = () => {
                     <TooltipContent>
                       {m === "commission" && "Creator earns a percentage of each sale they generate"}
                       {m === "flat" && "Creator earns a fixed amount per number of clicks"}
-                      {m === "hybrid" && "Best of both: commission per sale plus a flat rate per clicks"}
+                      {m === "hybrid" && "Combines commission per sale with a flat rate per clicks"}
                     </TooltipContent>
                   </Tooltip>
                 ))}
               </div>
-              <div className="flex items-center gap-3 flex-wrap">
-                {(campaignForm.payMethod === "commission" || campaignForm.payMethod === "hybrid") && (
-                  <div className="flex items-center gap-2">
-                    <Input value={campaignForm.commissionRate} onChange={(e) => setCampaignForm({ ...campaignForm, commissionRate: e.target.value })} className="w-20" placeholder="5" />
-                    <span className="text-sm text-muted-foreground">% per sale</span>
-                  </div>
-                )}
-                {campaignForm.payMethod === "hybrid" && <span className="text-lg font-bold text-primary">+</span>}
-                {(campaignForm.payMethod === "flat" || campaignForm.payMethod === "hybrid") && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">$</span>
-                    <Input value={campaignForm.flatRate} onChange={(e) => setCampaignForm({ ...campaignForm, flatRate: e.target.value })} className="w-20" placeholder="5" />
-                    <span className="text-sm text-muted-foreground">per</span>
-                    <Input value={campaignForm.flatPer} onChange={(e) => setCampaignForm({ ...campaignForm, flatPer: e.target.value })} className="w-20" placeholder="100" />
-                    <span className="text-sm text-muted-foreground">clicks</span>
-                  </div>
-                )}
-              </div>
+              {(campaignForm.payMethod === "commission" || campaignForm.payMethod === "hybrid") && (
+                <div><label className="text-sm font-medium text-foreground">Commission Rate (%)</label><Input value={campaignForm.commissionRate} onChange={(e) => setCampaignForm({ ...campaignForm, commissionRate: e.target.value })} placeholder="5" className="max-w-[100px]" /></div>
+              )}
+              {(campaignForm.payMethod === "flat" || campaignForm.payMethod === "hybrid") && (
+                <div className="flex gap-3 items-end">
+                  <div><label className="text-sm font-medium text-foreground">Flat Rate ($)</label><Input value={campaignForm.flatRate} onChange={(e) => setCampaignForm({ ...campaignForm, flatRate: e.target.value })} placeholder="5" className="max-w-[100px]" /></div>
+                  <div><label className="text-sm font-medium text-foreground">Per (clicks)</label><Input value={campaignForm.flatPer} onChange={(e) => setCampaignForm({ ...campaignForm, flatPer: e.target.value })} placeholder="100" className="max-w-[100px]" /></div>
+                </div>
+              )}
             </div>
 
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-6">
+            <div className={sectionCardClass + " space-y-6"}>
               <div className="flex items-center gap-2">
                 <h2 className="font-display text-lg font-semibold text-foreground">Advertising Platforms</h2>
-                <Tooltip><TooltipTrigger><Info className="w-4 h-4 text-muted-foreground" /></TooltipTrigger><TooltipContent>Only creators active on these platforms will see this campaign</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger><Info className="w-4 h-4 text-muted-foreground" /></TooltipTrigger><TooltipContent>Select which platforms creators should promote on</TooltipContent></Tooltip>
               </div>
               <div className="flex flex-wrap gap-2">
                 {["TikTok", "Instagram", "YouTube", "Twitter/X", "Facebook"].map((p) => (
                   <button key={p} onClick={() => setCampaignForm({
                     ...campaignForm,
                     platforms: campaignForm.platforms.includes(p) ? campaignForm.platforms.filter((x) => x !== p) : [...campaignForm.platforms, p],
-                  })} className={`px-4 py-2 rounded-full text-sm border ${campaignForm.platforms.includes(p) ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}>
+                  })} className={`px-4 py-2 rounded-lg border text-sm ${campaignForm.platforms.includes(p) ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}>
                     {p}
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-6">
+            <div className={sectionCardClass + " space-y-6"}>
               <div className="flex items-center gap-2">
                 <h2 className="font-display text-lg font-semibold text-foreground">Creator Filters</h2>
-                {plan !== "pro" && <Badge variant="outline" className="text-xs cursor-pointer" onClick={() => setShowProGate(true)}><Lock className="w-3 h-3 mr-1" /> Pro</Badge>}
+                <Tooltip><TooltipTrigger><Info className="w-4 h-4 text-muted-foreground" /></TooltipTrigger><TooltipContent>Set minimum requirements for creators who can join this campaign</TooltipContent></Tooltip>
               </div>
               {plan === "pro" ? (
                 <div className="space-y-4">
-                  <label className="flex items-center gap-3">
-                    <input type="checkbox" checked={campaignForm.filterFollowers} onChange={(e) => setCampaignForm({ ...campaignForm, filterFollowers: e.target.checked })} className="rounded" />
-                    <span className="text-sm text-foreground">Minimum followers</span>
-                  </label>
-                  {campaignForm.filterFollowers && (
-                    <div className="space-y-3 ml-6">
-                      <p className="text-xs font-medium text-muted-foreground">Count followers from:</p>
-                      <div className="flex flex-wrap gap-2">
-                        <button onClick={() => toggleFollowerType("total")} className={`px-3 py-1.5 rounded-full text-xs border ${campaignForm.followerFilterType.includes("total") ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}>Total</button>
-                        {campaignForm.platforms.filter((p) => ["TikTok", "Instagram", "YouTube"].includes(p)).map((p) => (
-                          <button key={p} onClick={() => toggleFollowerType(p)} className={`px-3 py-1.5 rounded-full text-xs border ${campaignForm.followerFilterType.includes(p) ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}>{p}</button>
-                        ))}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button className="w-8 h-8 rounded-lg border border-border flex items-center justify-center text-foreground hover:bg-accent" onClick={() => setCampaignForm({ ...campaignForm, minFollowers: followerStep(campaignForm.minFollowers, "down") })}>−</button>
-                        <Input value={campaignForm.minFollowers.toLocaleString()} readOnly className="w-32 text-center" />
-                        <button className="w-8 h-8 rounded-lg border border-border flex items-center justify-center text-foreground hover:bg-accent" onClick={() => setCampaignForm({ ...campaignForm, minFollowers: followerStep(campaignForm.minFollowers, "up") })}>+</button>
-                      </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground mb-2">Minimum followers</p>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {["TikTok", "Instagram", "YouTube", "total"].map((t) => (
+                        <button key={t} onClick={() => toggleFollowerType(t)} className={`px-3 py-1.5 rounded-full text-xs border ${campaignForm.followerFilterType.includes(t) ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}>{t === "total" ? "Total" : t}</button>
+                      ))}
                     </div>
-                  )}
+                    {campaignForm.followerFilterType.length > 0 && (
+                      <div className="flex items-center gap-2 mt-3">
+                        <Input
+                          value={campaignForm.minFollowers}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 0;
+                            setCampaignForm({ ...campaignForm, minFollowers: val });
+                          }}
+                          placeholder="1000"
+                          type="number"
+                          className="w-40"
+                        />
+                        <span className="text-xs text-muted-foreground">followers</span>
+                      </div>
+                    )}
+                  </div>
                   <div>
                     <p className="text-sm font-medium text-foreground mb-2">Creator categories</p>
                     <div className="flex flex-wrap gap-2">
@@ -721,7 +839,7 @@ const BrandDashboard = () => {
               )}
             </div>
 
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-4">
+            <div className={sectionCardClass + " space-y-4"}>
               <div className="flex items-center gap-2">
                 <h2 className="font-display text-lg font-semibold text-foreground">Paid Product</h2>
                 <Tooltip><TooltipTrigger><Info className="w-4 h-4 text-muted-foreground" /></TooltipTrigger><TooltipContent>Enable if you need to ship or deliver a product to the creator before they promote it</TooltipContent></Tooltip>
@@ -752,9 +870,55 @@ const BrandDashboard = () => {
               )}
             </div>
 
-            <Button variant="hero" size="lg" className="w-full rounded-xl" onClick={handleLaunchCampaign}>Launch Campaign</Button>
+            <Button variant="hero" size="lg" className="w-full rounded-xl" onClick={handleLaunchCampaign}>
+              {editingCampaignId ? "Save Changes" : "Launch Campaign"}
+            </Button>
           </div>
         )}
+
+        {/* Launch preview */}
+        {tab === "new-campaign" && showLaunchPreview && !showLaunchSuccess && (() => {
+          const preview = buildCampaignFromForm();
+          return (
+            <div className="max-w-lg mx-auto space-y-6">
+              <h1 className="font-display text-2xl font-bold text-foreground text-center">Campaign Preview</h1>
+              <p className="text-sm text-muted-foreground text-center">This is how your campaign will look to creators.</p>
+              <div className={cardClass + " space-y-4"}>
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-xl">{preview.name[0]}</div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-display font-bold text-foreground">{preview.name}</h3>
+                      {plan === "pro" && <Crown className="w-5 h-5 text-warning" />}
+                      {preview.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0 text-xs">${preview.signOnPay} sign-on pay</Badge>}
+                    </div>
+                    <p className="text-sm text-muted-foreground">{settingsName || "Your Brand"} · {preview.category}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{preview.payMethod}</p>
+                  </div>
+                </div>
+                {preview.images && preview.images.length > 0 && (
+                  <div className="flex gap-2">
+                    {preview.images.map((img, i) => (
+                      <div key={i} className="w-16 h-16 rounded-lg border border-border overflow-hidden">
+                        <img src={img} alt="" className="w-full h-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {preview.description && <p className="text-sm text-muted-foreground">{preview.description}</p>}
+                <Button variant="hero" size="sm" disabled>{preview.requireApply ? "Apply" : "Join Campaign"}</Button>
+              </div>
+              <div className="flex gap-3 justify-center">
+                <Button variant="outline" onClick={() => setShowLaunchPreview(false)}>
+                  <ChevronLeft className="w-4 h-4 mr-1" /> Edit
+                </Button>
+                <Button variant="hero" onClick={handleConfirmLaunch}>
+                  {editingCampaignId ? "Save Changes" : "Launch Campaign"}
+                </Button>
+              </div>
+            </div>
+          );
+        })()}
 
         {tab === "new-campaign" && showLaunchSuccess && (
           <div className="min-h-[60vh] flex items-center justify-center">
@@ -773,7 +937,7 @@ const BrandDashboard = () => {
                 <Button variant="secondary" onClick={() => { setTab("creator-view"); setShowLaunchSuccess(false); }}>
                   <Eye className="w-4 h-4 mr-2" /> View as Creator
                 </Button>
-                <Button className="bg-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/30 border-0" onClick={() => { setTab("campaigns"); setShowLaunchSuccess(false); }}>
+                <Button className="bg-primary-foreground text-primary hover:bg-primary-foreground/90 border-0" onClick={() => { setTab("campaigns"); setShowLaunchSuccess(false); }}>
                   Go to Campaigns
                 </Button>
               </div>
@@ -789,7 +953,7 @@ const BrandDashboard = () => {
             ) : (
               <div className="space-y-3">
                 {applications.map((app) => (
-                  <div key={app.id} className="p-5 rounded-2xl bg-card border border-border shadow-card flex items-center justify-between">
+                  <div key={app.id} className={cardClass + " flex items-center justify-between"}>
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">{app.creator[0]}</div>
                       <div>
@@ -815,10 +979,19 @@ const BrandDashboard = () => {
           </div>
         )}
 
-        {tab === "creators" && (
+        {tab === "creators" && !selectedCreatorDetail && (
           <div className="space-y-6">
-            <h1 className="font-display text-3xl font-bold text-foreground">Creator List & Invites</h1>
-            <p className="text-sm text-muted-foreground">AI-recommended creators based on your campaigns. Invite them directly.</p>
+            <div className="flex items-center justify-between">
+              <h1 className="font-display text-3xl font-bold text-foreground">Creator List & Invites</h1>
+              <Button
+                variant={showMyCreators ? "hero" : "outline"}
+                size="sm"
+                onClick={() => setShowMyCreators(!showMyCreators)}
+              >
+                <Users className="w-4 h-4 mr-1" /> {showMyCreators ? "All Creators" : "My Creators"}
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground">AI-recommended creators based on your campaigns. Click a creator to see more details.</p>
             <div className="flex gap-3">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -830,7 +1003,7 @@ const BrandDashboard = () => {
             </div>
 
             {showCreatorFilters && (
-              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-2xl p-5 shadow-card space-y-4">
+              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className={sectionCardClass + " space-y-4"}>
                 <h3 className="text-sm font-semibold text-foreground">Filter Creators</h3>
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-2">Platform</p>
@@ -842,40 +1015,53 @@ const BrandDashboard = () => {
                 </div>
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-2">Minimum Followers</p>
-                  <div className="flex items-center gap-2">
-                    <button className="w-8 h-8 rounded-lg border border-border flex items-center justify-center text-foreground hover:bg-accent" onClick={() => setCreatorFilterMinFollowers(followerStep(creatorFilterMinFollowers, "down"))}>−</button>
-                    <Input value={creatorFilterMinFollowers.toLocaleString()} readOnly className="w-32 text-center" />
-                    <button className="w-8 h-8 rounded-lg border border-border flex items-center justify-center text-foreground hover:bg-accent" onClick={() => setCreatorFilterMinFollowers(followerStep(creatorFilterMinFollowers, "up"))}>+</button>
-                  </div>
+                  <Input
+                    value={creatorFilterFollowersInput}
+                    onChange={(e) => {
+                      setCreatorFilterFollowersInput(e.target.value);
+                      const val = parseInt(e.target.value) || 0;
+                      setCreatorFilterMinFollowers(val);
+                    }}
+                    placeholder="0"
+                    type="number"
+                    className="w-40"
+                  />
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => { setCreatorFilterPlatform([]); setCreatorFilterMinFollowers(0); }}>Clear Filters</Button>
+                <Button variant="ghost" size="sm" onClick={() => { setCreatorFilterPlatform([]); setCreatorFilterMinFollowers(0); setCreatorFilterFollowersInput("0"); }}>Clear Filters</Button>
               </motion.div>
             )}
 
             <div className="space-y-3">
-              {filteredCreators.map((cr) => (
-                <div key={cr.name} className="p-5 rounded-2xl bg-card border border-border shadow-card flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">{cr.name[0]}</div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-foreground">{cr.name}</p>
-                        <Badge className="bg-success/10 text-primary border-0 text-xs">{cr.match}% match</Badge>
+              {filteredCreators.map((cr) => {
+                const relation = getCreatorRelation(cr.name);
+                return (
+                  <div key={cr.name} className={cardClass + " flex items-center justify-between cursor-pointer hover:shadow-card-hover transition-shadow"} onClick={() => setSelectedCreatorDetail(cr.name)}>
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">{cr.name[0]}</div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-foreground">{cr.name}</p>
+                          <Badge className="bg-success/10 text-primary border-0 text-xs">{cr.match}% match</Badge>
+                          {relation === "active" && <Badge className="bg-primary/10 text-primary border-0 text-xs">Works with you</Badge>}
+                          {relation === "past" && <Badge variant="secondary" className="text-xs">Worked with you</Badge>}
+                        </div>
+                        <p className="text-sm text-muted-foreground">{cr.platform} · {cr.followers} · {cr.category}</p>
                       </div>
-                      <p className="text-sm text-muted-foreground">{cr.platform} · {cr.followers} · {cr.category}</p>
+                    </div>
+                    <div onClick={(e) => e.stopPropagation()}>
+                      {invitedCreators.includes(cr.name) ? (
+                        <Button variant="secondary" size="sm" disabled>
+                          <Check className="w-4 h-4 mr-1" /> Invited
+                        </Button>
+                      ) : (
+                        <Button variant="hero" size="sm" onClick={() => handleInviteCreator(cr.name)}>
+                          <Send className="w-4 h-4 mr-1" /> Invite
+                        </Button>
+                      )}
                     </div>
                   </div>
-                  {invitedCreators.includes(cr.name) ? (
-                    <Button variant="secondary" size="sm" disabled>
-                      <Check className="w-4 h-4 mr-1" /> Invited
-                    </Button>
-                  ) : (
-                    <Button variant="hero" size="sm" onClick={() => handleInviteCreator(cr.name)}>
-                      <Send className="w-4 h-4 mr-1" /> Invite
-                    </Button>
-                  )}
-                </div>
-              ))}
+                );
+              })}
               {filteredCreators.length === 0 && (
                 <p className="text-center text-muted-foreground py-8">No creators match your filters.</p>
               )}
@@ -883,10 +1069,59 @@ const BrandDashboard = () => {
           </div>
         )}
 
+        {/* Creator detail view */}
+        {tab === "creators" && selectedCreatorDetail && (() => {
+          const cr = allCreators.find((c) => c.name === selectedCreatorDetail);
+          if (!cr) return null;
+          const relation = getCreatorRelation(cr.name);
+          return (
+            <div className="max-w-2xl space-y-6">
+              <button onClick={() => setSelectedCreatorDetail(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to creators</button>
+              <div className={sectionCardClass + " space-y-6"}>
+                <div className="flex items-center gap-4">
+                  <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-3xl">{cr.name[0]}</div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h1 className="font-display text-2xl font-bold text-foreground">{cr.name}</h1>
+                      <Badge className="bg-success/10 text-primary border-0">{cr.match}% match</Badge>
+                      {relation === "active" && <Badge className="bg-primary/10 text-primary border-0">Works with you</Badge>}
+                      {relation === "past" && <Badge variant="secondary">Worked with you</Badge>}
+                    </div>
+                    <p className="text-muted-foreground">{cr.platform} · {cr.followers} · {cr.category}</p>
+                  </div>
+                </div>
+                <p className="text-sm text-foreground">{cr.bio}</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Platform</p><p className="font-semibold text-foreground">{cr.platform}</p></div>
+                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Followers</p><p className="font-semibold text-foreground">{cr.followers}</p></div>
+                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Category</p><p className="font-semibold text-foreground">{cr.category}</p></div>
+                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Match Score</p><p className="font-semibold text-primary">{cr.match}%</p></div>
+                </div>
+                {cr.portfolio.length > 0 && (
+                  <div>
+                    <h3 className="font-display font-semibold text-foreground mb-2">Portfolio</h3>
+                    <div className="space-y-2">
+                      {cr.portfolio.map((link, i) => (
+                        <a key={i} href={link} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline block">{link}</a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="flex gap-3">
+                  {invitedCreators.includes(cr.name) ? (
+                    <Button variant="secondary" disabled><Check className="w-4 h-4 mr-1" /> Invited</Button>
+                  ) : (
+                    <Button variant="hero" onClick={() => handleInviteCreator(cr.name)}><Send className="w-4 h-4 mr-1" /> Invite to Campaign</Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {tab === "analytics" && (
           <div className="space-y-6">
             <h1 className="font-display text-3xl font-bold text-foreground">Analytics</h1>
-            <p className="text-sm text-muted-foreground">Customize which metrics you want to see.</p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
                 { label: "Total Revenue", value: "$0" },
@@ -895,31 +1130,39 @@ const BrandDashboard = () => {
                 { label: "Total Creators", value: String(campaigns.reduce((s, c) => s + c.activeCreators.length, 0)) },
                 { label: "Plan", value: plan === "pro" ? "Pro" : "Basic" },
               ].map((s) => (
-                <div key={s.label} className="p-5 rounded-2xl bg-card border border-border shadow-card">
+                <div key={s.label} className={cardClass}>
                   <p className="text-sm text-muted-foreground">{s.label}</p>
                   <p className="font-display text-2xl font-bold text-foreground">{s.value}</p>
                 </div>
               ))}
             </div>
 
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-card">
+            <div className={sectionCardClass}>
               <h2 className="font-display text-xl font-bold text-foreground mb-4">Sales Attribution</h2>
-              <p className="text-sm text-muted-foreground mb-4">Manually attribute offline sales to a creator.</p>
-              <div className="flex gap-3 items-end">
-                <div className="flex-1">
+              <p className="text-sm text-muted-foreground mb-4">Manually attribute offline sales, clicks, or revenue to a creator.</p>
+              <div className="flex gap-3 items-end flex-wrap">
+                <div className="flex-1 min-w-[150px]">
                   <label className="text-sm font-medium text-foreground">Creator</label>
-                  <select className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm">
+                  <select className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm" value={attributeCreator} onChange={(e) => setAttributeCreator(e.target.value)}>
                     <option value="">Select creator</option>
                     {campaigns.flatMap((c) => c.activeCreators).map((cr, i) => (
-                      <option key={i}>{cr.name}</option>
+                      <option key={i} value={cr.name}>{cr.name}</option>
                     ))}
                   </select>
                 </div>
                 <div className="w-32">
-                  <label className="text-sm font-medium text-foreground">Sales</label>
-                  <Input placeholder="5" type="number" />
+                  <label className="text-sm font-medium text-foreground">Type</label>
+                  <select className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm" value={attributeType} onChange={(e) => setAttributeType(e.target.value as any)}>
+                    <option value="sales">Sales</option>
+                    <option value="clicks">Clicks</option>
+                    <option value="dollars">Dollar Amount ($)</option>
+                  </select>
                 </div>
-                <Button variant="hero" size="default">Attribute</Button>
+                <div className="w-28">
+                  <label className="text-sm font-medium text-foreground">{attributeType === "dollars" ? "Amount ($)" : "Count"}</label>
+                  <Input placeholder={attributeType === "dollars" ? "50" : "5"} type="number" value={attributeValue} onChange={(e) => setAttributeValue(e.target.value)} />
+                </div>
+                <Button variant="hero" size="default" onClick={handleAttributeSales}>Attribute</Button>
               </div>
             </div>
           </div>
@@ -932,7 +1175,7 @@ const BrandDashboard = () => {
 
             <div className="space-y-4">
               {campaigns.filter((c) => c.status === "active").map((c) => (
-                <div key={c.id} className="p-5 rounded-2xl bg-card border border-border shadow-card">
+                <div key={c.id} className={cardClass}>
                   <div className="flex items-center gap-4 mb-3">
                     <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-xl">{c.name[0]}</div>
                     <div>
@@ -944,10 +1187,10 @@ const BrandDashboard = () => {
                             <TooltipTrigger>
                               <Crown className="w-5 h-5 text-warning" />
                             </TooltipTrigger>
-                            <TooltipContent>Top Brand — This brand has a Pro subscription with extended attribution and priority placement</TooltipContent>
+                            <TooltipContent>Top Brand — Pro subscription with extended creator attribution windows and priority placement</TooltipContent>
                           </Tooltip>
                         )}
-                        {c.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0 text-xs">Sign-On ${c.signOnPay}</Badge>}
+                        {c.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0 text-xs">${c.signOnPay} sign-on pay</Badge>}
                       </div>
                       <p className="text-sm text-muted-foreground">{settingsName || "Your Brand"} · {c.category} · {c.payMethod}</p>
                     </div>
@@ -957,7 +1200,7 @@ const BrandDashboard = () => {
               ))}
 
               {exampleCreatorCampaigns.map((c, i) => (
-                <div key={i} className="p-5 rounded-2xl bg-card border border-border shadow-card">
+                <div key={i} className={cardClass}>
                   <div className="flex items-center gap-4 mb-3">
                     <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-xl">{c.brand[0]}</div>
                     <div>
@@ -968,10 +1211,10 @@ const BrandDashboard = () => {
                             <TooltipTrigger>
                               <Crown className="w-5 h-5 text-warning" />
                             </TooltipTrigger>
-                            <TooltipContent>Top Brand — This brand has a Pro subscription with extended attribution and priority placement</TooltipContent>
+                            <TooltipContent>Top Brand — Pro subscription with extended creator attribution windows and priority placement</TooltipContent>
                           </Tooltip>
                         )}
-                        {c.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0 text-xs">Sign-On ${c.signOnPay}</Badge>}
+                        {c.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0 text-xs">${c.signOnPay} sign-on pay</Badge>}
                       </div>
                       <p className="text-sm text-muted-foreground">{c.brand} · {c.category} · {c.platform}</p>
                       <p className="text-xs text-muted-foreground mt-1">{c.payMethod}</p>
@@ -988,7 +1231,7 @@ const BrandDashboard = () => {
           <div className="space-y-6 max-w-lg">
             <h1 className="font-display text-3xl font-bold text-foreground">Settings</h1>
 
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-4">
+            <div className={sectionCardClass + " space-y-4"}>
               <div className="flex items-center gap-2">
                 <User className="w-5 h-5 text-primary" />
                 <h2 className="font-display text-lg font-semibold text-foreground">Account Details</h2>
@@ -1005,7 +1248,7 @@ const BrandDashboard = () => {
               </div>
             </div>
 
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-4">
+            <div className={sectionCardClass + " space-y-4"}>
               <div className="flex items-center gap-2">
                 <KeyRound className="w-5 h-5 text-primary" />
                 <h2 className="font-display text-lg font-semibold text-foreground">Change Password</h2>
@@ -1015,7 +1258,7 @@ const BrandDashboard = () => {
               <div><label className="text-sm font-medium text-foreground">Confirm New Password</label><Input type="password" value={settingsPassword.confirm} onChange={(e) => setSettingsPassword({ ...settingsPassword, confirm: e.target.value })} /></div>
             </div>
 
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-4">
+            <div className={sectionCardClass + " space-y-4"}>
               <div className="flex items-center gap-2">
                 <CreditCard className="w-5 h-5 text-primary" />
                 <h2 className="font-display text-lg font-semibold text-foreground">Payment Information</h2>
@@ -1027,7 +1270,7 @@ const BrandDashboard = () => {
               </div>
             </div>
 
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-4">
+            <div className={sectionCardClass + " space-y-4"}>
               <div className="flex items-center gap-2">
                 {darkMode ? <Moon className="w-5 h-5 text-primary" /> : <Sun className="w-5 h-5 text-primary" />}
                 <h2 className="font-display text-lg font-semibold text-foreground">Appearance</h2>
@@ -1040,7 +1283,7 @@ const BrandDashboard = () => {
               </div>
             </div>
 
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-4">
+            <div className={sectionCardClass + " space-y-4"}>
               <h2 className="font-display text-lg font-semibold text-foreground">Subscription</h2>
               <p className="text-sm text-muted-foreground">Current plan: <span className="font-semibold text-foreground">{plan === "pro" ? "Pro ($49/mo)" : "Basic (Free)"}</span></p>
               {plan !== "pro" && <Button variant="outline" size="sm" onClick={() => setShowProGate(true)}>Upgrade to Pro</Button>}
