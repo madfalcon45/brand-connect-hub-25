@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { motion } from "framer-motion";
-import { Building2, Palette, ArrowRight, ArrowLeft, Check, X, AlertCircle, CreditCard } from "lucide-react";
+import { Building2, Palette, ArrowRight, ArrowLeft, Check, AlertCircle, CreditCard } from "lucide-react";
 
 const countries = ["United States", "United Kingdom", "Canada"];
 
@@ -21,19 +21,22 @@ const creatorCategories = [
   "Education & How-to", "Finance & Business", "DIY & Crafts", "Parenting", "General / Any",
 ];
 
-const planFeatures = [
-  { text: "3 active campaigns", basic: true, pro: true },
-  { text: "Customizable creator intake process", basic: true, pro: true },
-  { text: "Analytics dashboard", basic: true, pro: true },
-  { text: "Custom affiliate links & codes", basic: true, pro: true },
-  { text: "Creator view", basic: true, pro: true },
-  { text: "Unlimited active campaigns", basic: false, pro: true },
-  { text: "Creator search, recommendations & invitations", basic: false, pro: true },
-  { text: "Eligible creators filtering", basic: false, pro: true },
-  { text: "Priority campaign placements", basic: false, pro: true },
-  { text: "Priority support", basic: false, pro: true },
-  { text: "Extended creator attribution window", basic: false, pro: true },
-  { text: '"Top brand" badge visible to creators', basic: false, pro: true },
+const freeFeatures = [
+  "3 active campaigns",
+  "Customizable creator intake process",
+  "Analytics dashboard",
+  "Custom affiliate links & codes",
+  "Creator view",
+];
+
+const proExtras = [
+  "Unlimited active campaigns",
+  "Creator search, recommendations & invitations",
+  "Eligible creators filtering",
+  "Priority campaign placements",
+  "Priority support",
+  "Extended creator attribution window",
+  '"Top brand" badge visible to creators',
 ];
 
 const Signup = () => {
@@ -49,8 +52,6 @@ const Signup = () => {
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
 
-  // Brand: steps 1=account, 2=categories, 3=plan, 4=payment
-  // Creator: steps 1=account, 2=categories, 3=socials, 4=payment
   const totalSteps = 4;
   const progress = (step / totalSteps) * 100;
 
@@ -286,24 +287,29 @@ const Signup = () => {
                     </button>
                   ))}
                 </div>
-                <div className="bg-muted/30 rounded-xl p-4 space-y-2">
-                  <p className="text-sm font-semibold text-foreground mb-3">Feature Comparison</p>
-                  <div className="grid grid-cols-[1fr_60px_60px] gap-1 text-xs">
-                    <div />
-                    <div className="text-center font-semibold text-foreground">Basic</div>
-                    <div className="text-center font-semibold text-primary">Pro</div>
+                <div className="bg-muted/30 rounded-xl p-4 space-y-4">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground mb-2">Basic (Free)</p>
+                    <ul className="space-y-1.5">
+                      {freeFeatures.map((f) => (
+                        <li key={f} className="flex items-start gap-2 text-xs">
+                          <Check className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                          <span className="text-foreground">{f}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                  {planFeatures.map((f) => (
-                    <div key={f.text} className="grid grid-cols-[1fr_60px_60px] gap-1 items-center text-xs py-1 border-t border-border/50">
-                      <span className="text-foreground">{f.text}</span>
-                      <div className="flex justify-center">
-                        {f.basic ? <Check className="w-4 h-4 text-primary" /> : <X className="w-4 h-4 text-muted-foreground/40" />}
-                      </div>
-                      <div className="flex justify-center">
-                        {f.pro ? <Check className="w-4 h-4 text-primary" /> : <X className="w-4 h-4 text-muted-foreground/40" />}
-                      </div>
-                    </div>
-                  ))}
+                  <div className="border-t border-border pt-3">
+                    <p className="text-sm font-semibold text-primary mb-2">Pro ($49/mo) — Everything in Basic, plus:</p>
+                    <ul className="space-y-1.5">
+                      {proExtras.map((f) => (
+                        <li key={f} className="flex items-start gap-2 text-xs">
+                          <Check className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                          <span className="text-foreground">{f}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
               </div>
             )}
@@ -354,7 +360,7 @@ const Signup = () => {
                   transition={{ duration: 0.3 }}
                 />
               </div>
-              <p className="text-xs text-primary-foreground/70 text-center mt-2">Step {step} of {totalSteps}</p>
+              <p className="text-xs text-primary-foreground/70 mt-2 text-center">Step {step} of {totalSteps}</p>
             </div>
           )}
         </div>

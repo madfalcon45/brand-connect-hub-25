@@ -7,9 +7,9 @@ const Navbar = () => {
   const [open, setOpen] = useState(false);
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
+    <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md border-b border-border" style={{ background: 'linear-gradient(to bottom, hsl(145, 40%, 92%), hsl(0, 0%, 100%, 0.9))' }}>
       <div className="container flex items-center justify-between h-16">
-        <Link to="/" className="flex items-center gap-2">
+        <Link to="/" className="flex items-center gap-2" onClick={() => document.documentElement.classList.remove("dark")}>
           <div className="w-8 h-8 rounded-lg bg-gradient-brand flex items-center justify-center">
             <span className="text-primary-foreground font-display font-bold text-sm">A</span>
           </div>

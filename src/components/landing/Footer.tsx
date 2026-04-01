@@ -12,7 +12,7 @@ const Footer = () => (
         </div>
         <div className="flex gap-6 text-sm text-muted-foreground">
           <Link to="/pricing" className="hover:text-foreground transition-colors">Pricing</Link>
-          <Link to="/tour" className="hover:text-foreground transition-colors">Tour</Link>
+          <Link to="/tour" className="hover:text-foreground transition-colors">How It Works</Link>
           <Link to="/signup" className="hover:text-foreground transition-colors">Sign Up</Link>
         </div>
         <p className="text-sm text-muted-foreground">© {new Date().getFullYear()} AllCall. All rights reserved.</p>
