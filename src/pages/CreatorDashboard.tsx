@@ -7,7 +7,7 @@ import {
   BarChart3, Users, DollarSign, Settings, LogOut, Search, Filter,
   Star, TrendingUp, Link2, ExternalLink, ClipboardCopy, FileText, Eye, Check,
   User, KeyRound, Moon, Sun, Crown, Info, Plus, CreditCard, MoreHorizontal,
-  ChevronLeft, Upload, Video, XCircle
+  ChevronLeft, Upload, Video, XCircle, AlertCircle, X as XIcon
 } from "lucide-react";
 import {
   Tooltip,
@@ -29,9 +29,14 @@ const CreatorDashboard = () => {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("feed");
   const [filterCategory, setFilterCategory] = useState("");
+  const [filterPayType, setFilterPayType] = useState("");
+  const [filterPlatform, setFilterPlatform] = useState<string[]>([]);
+  const [filterSignOnPay, setFilterSignOnPay] = useState(false);
+  const [filterMinSignOnPay, setFilterMinSignOnPay] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCampaign, setSelectedCampaign] = useState<number | null>(null);
-  const [joinedCampaigns, setJoinedCampaigns] = useState<{ id: number; brand: string; product: string; link: string; code: string; earnings: number }[]>([]);
+  const [joinedCampaigns, setJoinedCampaigns] = useState<{ id: number; brand: string; product: string; link: string; code: string; earnings: number; clicks: number; sales: number }[]>([]);
   const [appliedIds, setAppliedIds] = useState<number[]>([]);
   const [masterLinkIds, setMasterLinkIds] = useState<number[]>([]);
   const [address, setAddress] = useState("");
@@ -44,6 +49,9 @@ const CreatorDashboard = () => {
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
   const [portfolioLinks, setPortfolioLinks] = useState<string[]>([]);
   const [newPortfolioLink, setNewPortfolioLink] = useState("");
+  const [showWithdrawConfirm, setShowWithdrawConfirm] = useState<{ id: number; type: "campaign" | "application" } | null>(null);
+  const [viewingBrand, setViewingBrand] = useState<string | null>(null);
+  const [analyticsDetail, setAnalyticsDetail] = useState<string | null>(null);
 
   const [settingsName, setSettingsName] = useState(() => localStorage.getItem("allcall_creator_name") || "");
   const [settingsEmail, setSettingsEmail] = useState(() => localStorage.getItem("allcall_email") || "");
@@ -52,17 +60,31 @@ const CreatorDashboard = () => {
   const savedAddress = settingsCountry ? `123 Creator St, ${settingsCountry}` : "";
 
   const availableCampaigns = [
-    { id: 1, brand: "GlowBeauty", product: "Summer Glow Serum", category: "Beauty", platform: "TikTok", payMethod: "Hybrid: 5% + $5/100 clicks", signOnPay: 25, isPro: true, topPick: true, needsProduct: true, requireApply: true },
-    { id: 2, brand: "FitPro", product: "ProFit Blender", category: "Health", platform: "Instagram", payMethod: "Commission: 8%", signOnPay: 0, isPro: false, topPick: true, needsProduct: false, requireApply: false },
-    { id: 3, brand: "TechBite", product: "CodeMaster Keyboard", category: "Tech", platform: "YouTube", payMethod: "Flat: $10/100 clicks", signOnPay: 50, isPro: true, topPick: false, needsProduct: true, requireApply: true },
-    { id: 4, brand: "HomeNest", product: "Smart Diffuser", category: "Home", platform: "TikTok", payMethod: "Commission: 6%", signOnPay: 0, isPro: false, topPick: false, needsProduct: false, requireApply: false },
-    { id: 5, brand: "EcoLife", product: "Bamboo Water Bottle", category: "Health", platform: "Instagram", payMethod: "Hybrid: 4% + $5/100 clicks", signOnPay: 15, isPro: true, topPick: true, needsProduct: true, requireApply: true },
-    { id: 6, brand: "ChargePro", product: "Wireless Charger Pad", category: "Tech", platform: "YouTube", payMethod: "Flat: $12/100 clicks", signOnPay: 0, isPro: false, topPick: false, needsProduct: false, requireApply: true },
-    { id: 7, brand: "StyleVault", product: "Oversized Vintage Tee", category: "Fashion", platform: "TikTok", payMethod: "Commission: 12%", signOnPay: 20, isPro: true, topPick: true, needsProduct: true, requireApply: true },
-    { id: 8, brand: "PetPals", product: "Organic Dog Treats", category: "Home", platform: "Instagram", payMethod: "Hybrid: 7% + $3/100 clicks", signOnPay: 0, isPro: false, topPick: false, needsProduct: true, requireApply: false },
-    { id: 9, brand: "BrewCraft", product: "Cold Brew Maker Kit", category: "Food", platform: "YouTube", payMethod: "Commission: 9%", signOnPay: 30, isPro: true, topPick: false, needsProduct: true, requireApply: true },
-    { id: 10, brand: "ZenSkin", product: "Retinol Night Cream", category: "Beauty", platform: "TikTok", payMethod: "Flat: $8/100 clicks", signOnPay: 0, isPro: false, topPick: true, needsProduct: false, requireApply: false },
+    { id: 1, brand: "GlowBeauty", product: "Summer Glow Serum", category: "Beauty", platform: "TikTok", payMethod: "Hybrid: 5% + $5/100 clicks", signOnPay: 25, isPro: true, topPick: true, needsProduct: true, requireApply: true, image: "" },
+    { id: 2, brand: "FitPro", product: "ProFit Blender", category: "Health", platform: "Instagram", payMethod: "Commission: 8%", signOnPay: 0, isPro: false, topPick: true, needsProduct: false, requireApply: false, image: "" },
+    { id: 3, brand: "TechBite", product: "CodeMaster Keyboard", category: "Tech", platform: "YouTube", payMethod: "Flat: $10/100 clicks", signOnPay: 50, isPro: true, topPick: false, needsProduct: true, requireApply: true, image: "" },
+    { id: 4, brand: "HomeNest", product: "Smart Diffuser", category: "Home", platform: "TikTok", payMethod: "Commission: 6%", signOnPay: 0, isPro: false, topPick: false, needsProduct: false, requireApply: false, image: "" },
+    { id: 5, brand: "EcoLife", product: "Bamboo Water Bottle", category: "Health", platform: "Instagram", payMethod: "Hybrid: 4% + $5/100 clicks", signOnPay: 15, isPro: true, topPick: true, needsProduct: true, requireApply: true, image: "" },
+    { id: 6, brand: "ChargePro", product: "Wireless Charger Pad", category: "Tech", platform: "YouTube", payMethod: "Flat: $12/100 clicks", signOnPay: 0, isPro: false, topPick: false, needsProduct: false, requireApply: true, image: "" },
+    { id: 7, brand: "StyleVault", product: "Oversized Vintage Tee", category: "Fashion", platform: "TikTok", payMethod: "Commission: 12%", signOnPay: 20, isPro: true, topPick: true, needsProduct: true, requireApply: true, image: "" },
+    { id: 8, brand: "PetPals", product: "Organic Dog Treats", category: "Home", platform: "Instagram", payMethod: "Hybrid: 7% + $3/100 clicks", signOnPay: 0, isPro: false, topPick: false, needsProduct: true, requireApply: false, image: "" },
+    { id: 9, brand: "BrewCraft", product: "Cold Brew Maker Kit", category: "Food", platform: "YouTube", payMethod: "Commission: 9%", signOnPay: 30, isPro: true, topPick: false, needsProduct: true, requireApply: true, image: "" },
+    { id: 10, brand: "ZenSkin", product: "Retinol Night Cream", category: "Beauty", platform: "TikTok", payMethod: "Flat: $8/100 clicks", signOnPay: 0, isPro: false, topPick: true, needsProduct: false, requireApply: false, image: "" },
   ];
+
+  // Brand analytics data for when creators click a brand name
+  const brandAnalytics: Record<string, { totalPaid: number; campaigns: number; creators: number }> = {
+    "GlowBeauty": { totalPaid: 12500, campaigns: 4, creators: 28 },
+    "FitPro": { totalPaid: 8200, campaigns: 2, creators: 15 },
+    "TechBite": { totalPaid: 18000, campaigns: 5, creators: 42 },
+    "HomeNest": { totalPaid: 3400, campaigns: 1, creators: 8 },
+    "EcoLife": { totalPaid: 6700, campaigns: 3, creators: 19 },
+    "ChargePro": { totalPaid: 4100, campaigns: 2, creators: 12 },
+    "StyleVault": { totalPaid: 9800, campaigns: 3, creators: 31 },
+    "PetPals": { totalPaid: 2200, campaigns: 1, creators: 6 },
+    "BrewCraft": { totalPaid: 5600, campaigns: 2, creators: 14 },
+    "ZenSkin": { totalPaid: 7300, campaigns: 3, creators: 22 },
+  };
 
   const sidebarItems: { key: Tab; label: string; icon: any }[] = [
     { key: "feed", label: "Campaigns", icon: Search },
@@ -73,9 +95,20 @@ const CreatorDashboard = () => {
     { key: "settings", label: "Settings", icon: Settings },
   ];
 
+  const getPayType = (method: string) => {
+    if (method.startsWith("Hybrid")) return "hybrid";
+    if (method.startsWith("Commission")) return "commission";
+    return "flat";
+  };
+
   const filteredCampaigns = availableCampaigns.filter((c) => {
     if (filterCategory && c.category !== filterCategory) return false;
     if (searchQuery && !c.product.toLowerCase().includes(searchQuery.toLowerCase()) && !c.brand.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (filterPayType && getPayType(c.payMethod) !== filterPayType) return false;
+    if (filterPlatform.length > 0 && !filterPlatform.includes(c.platform)) return false;
+    if (filterSignOnPay && c.signOnPay <= 0) return false;
+    if (filterSignOnPay && filterMinSignOnPay && c.signOnPay < Number(filterMinSignOnPay)) return false;
+    if (viewingBrand && c.brand !== viewingBrand) return false;
     return true;
   }).sort((a, b) => {
     if (a.topPick !== b.topPick) return a.topPick ? -1 : 1;
@@ -97,6 +130,8 @@ const CreatorDashboard = () => {
         link,
         code,
         earnings: 0,
+        clicks: 0,
+        sales: 0,
       };
       setJoinedCampaigns([...joinedCampaigns, newJoined]);
       setJoinDialogData({ product: campaign.product, link, code });
@@ -124,13 +159,23 @@ const CreatorDashboard = () => {
   };
 
   const handleWithdraw = (id: number) => {
-    setJoinedCampaigns((prev) => prev.filter((c) => c.id !== id));
-    setMasterLinkIds((prev) => prev.filter((x) => x !== id));
+    setShowWithdrawConfirm({ id, type: "campaign" });
     setMenuOpenId(null);
   };
 
+  const confirmWithdraw = () => {
+    if (!showWithdrawConfirm) return;
+    if (showWithdrawConfirm.type === "campaign") {
+      setJoinedCampaigns((prev) => prev.filter((c) => c.id !== showWithdrawConfirm.id));
+      setMasterLinkIds((prev) => prev.filter((x) => x !== showWithdrawConfirm.id));
+    } else {
+      setAppliedIds((prev) => prev.filter((x) => x !== showWithdrawConfirm.id));
+    }
+    setShowWithdrawConfirm(null);
+  };
+
   const handleWithdrawApplication = (id: number) => {
-    setAppliedIds((prev) => prev.filter((x) => x !== id));
+    setShowWithdrawConfirm({ id, type: "application" });
     setMenuOpenId(null);
   };
 
@@ -166,8 +211,33 @@ const CreatorDashboard = () => {
   const cardClass = "p-5 rounded-2xl bg-card border border-border shadow-card dark-green-outline";
   const sectionCardClass = "bg-card border border-border rounded-2xl p-6 shadow-card dark-green-outline";
 
+  const totalEarnings = joinedCampaigns.reduce((s, c) => s + c.earnings, 0);
+  const totalClicks = joinedCampaigns.reduce((s, c) => s + c.clicks, 0);
+  const totalSales = joinedCampaigns.reduce((s, c) => s + c.sales, 0);
+
   return (
-    <div className="min-h-screen flex" style={{ background: 'linear-gradient(180deg, hsl(145, 30%, 95%) 0%, hsl(150, 20%, 98%) 50%, hsl(0, 0%, 100%) 100%)' }}>
+    <div className="min-h-screen flex bg-background" style={{ background: darkMode ? undefined : 'linear-gradient(180deg, hsl(145, 30%, 95%) 0%, hsl(150, 20%, 98%) 50%, hsl(0, 0%, 100%) 100%)' }}>
+      {/* Withdraw confirmation */}
+      {showWithdrawConfirm && (
+        <div className="fixed inset-0 z-50 bg-foreground/50 flex items-center justify-center" onClick={() => setShowWithdrawConfirm(null)}>
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-card border border-border rounded-2xl p-8 max-w-sm text-center shadow-lg" onClick={(e) => e.stopPropagation()}>
+            <AlertCircle className="w-10 h-10 text-warning mx-auto mb-4" />
+            <h3 className="font-display text-xl font-bold text-foreground mb-2">
+              {showWithdrawConfirm.type === "campaign" ? "Withdraw from Campaign?" : "Withdraw Application?"}
+            </h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              {showWithdrawConfirm.type === "campaign"
+                ? "You will lose access to your affiliate link and code for this campaign. Any pending earnings may be forfeited."
+                : "Your application will be withdrawn and you will need to reapply if you change your mind."}
+            </p>
+            <div className="flex gap-3 justify-center">
+              <Button variant="destructive" onClick={confirmWithdraw}>Withdraw</Button>
+              <Button variant="outline" onClick={() => setShowWithdrawConfirm(null)}>Cancel</Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       {/* Join confirmation dialog */}
       <Dialog open={showJoinDialog} onOpenChange={setShowJoinDialog}>
         <DialogContent className="max-w-sm">
@@ -218,7 +288,7 @@ const CreatorDashboard = () => {
           {sidebarItems.map((item) => (
             <button
               key={item.key}
-              onClick={() => { setTab(item.key); setSelectedCampaign(null); setMenuOpenId(null); }}
+              onClick={() => { setTab(item.key); setSelectedCampaign(null); setMenuOpenId(null); setViewingBrand(null); setAnalyticsDetail(null); }}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
                 tab === item.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"
               }`}
@@ -235,7 +305,64 @@ const CreatorDashboard = () => {
       </aside>
 
       <main className="flex-1 p-8 overflow-y-auto">
-        {tab === "feed" && !selectedCampaign && (
+        {/* Brand profile view */}
+        {tab === "feed" && viewingBrand && !selectedCampaign && (() => {
+          const ba = brandAnalytics[viewingBrand] || { totalPaid: 0, campaigns: 0, creators: 0 };
+          const brandCampaigns = availableCampaigns.filter((c) => c.brand === viewingBrand);
+          return (
+            <div className="space-y-6">
+              <button onClick={() => setViewingBrand(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to campaigns</button>
+              <div className={sectionCardClass + " space-y-4"}>
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-2xl">{viewingBrand[0]}</div>
+                  <div>
+                    <h1 className="font-display text-2xl font-bold text-foreground">{viewingBrand}</h1>
+                    <p className="text-sm text-muted-foreground">{brandCampaigns.length} campaigns · {ba.creators} creators</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Total Paid to Creators</p><p className="font-display text-xl font-bold text-primary">${ba.totalPaid.toLocaleString()}</p></div>
+                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Active Campaigns</p><p className="font-display text-xl font-bold text-foreground">{ba.campaigns}</p></div>
+                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Total Creators</p><p className="font-display text-xl font-bold text-foreground">{ba.creators}</p></div>
+                </div>
+              </div>
+              <h2 className="font-display text-xl font-semibold text-foreground">Campaigns by {viewingBrand}</h2>
+              <div className="space-y-3">
+                {brandCampaigns.map((c) => {
+                  const btnState = getButtonState(c);
+                  return (
+                    <div key={c.id} className={cardClass + " hover:shadow-card-hover transition-shadow cursor-pointer"} onClick={() => setSelectedCampaign(c.id)}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-xl">{c.brand[0]}</div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-display font-bold text-foreground">{c.product}</h3>
+                              {c.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0 text-xs">${c.signOnPay} sign-on pay</Badge>}
+                            </div>
+                            <p className="text-sm text-muted-foreground">{c.category} · {c.platform}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{c.payMethod}</p>
+                          </div>
+                        </div>
+                        <div onClick={(e) => e.stopPropagation()}>
+                          {btnState === "joined" ? (
+                            <Badge className="bg-success/10 text-primary border-0"><Check className="w-3 h-3 mr-1" /> Joined</Badge>
+                          ) : btnState === "pending" ? (
+                            <Button variant="secondary" size="sm" disabled>Pending</Button>
+                          ) : (
+                            <Button variant="hero" size="sm" onClick={() => handleJoinOrApply(c)}>{c.requireApply ? "Apply" : "Join"}</Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+
+        {tab === "feed" && !selectedCampaign && !viewingBrand && (
           <div className="space-y-6">
             <h1 className="font-display text-3xl font-bold text-foreground">Discover Campaigns</h1>
             <div className="flex gap-3">
@@ -243,11 +370,52 @@ const CreatorDashboard = () => {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input placeholder="Search campaigns..." className="pl-10" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
               </div>
-              <select className="rounded-lg border border-input bg-background px-3 py-2 text-sm" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
-                <option value="">All Categories</option>
-                {["Beauty", "Health", "Tech", "Fashion", "Home", "Food"].map((c) => <option key={c}>{c}</option>)}
-              </select>
+              <Button variant="outline" onClick={() => setShowFilters(!showFilters)}>
+                <Filter className="w-4 h-4 mr-2" /> Filters
+              </Button>
             </div>
+
+            {showFilters && (
+              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className={sectionCardClass + " space-y-4"}>
+                <h3 className="text-sm font-semibold text-foreground">Filter Campaigns</h3>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Category</p>
+                  <select className="rounded-lg border border-input bg-background px-3 py-2 text-sm w-full" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
+                    <option value="">All Categories</option>
+                    {["Beauty", "Health", "Tech", "Fashion", "Home", "Food", "Sports", "Travel", "Education", "Finance", "Entertainment", "Automotive", "Pet Products"].map((c) => <option key={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Pay Type</p>
+                  <div className="flex flex-wrap gap-2">
+                    {[{ key: "commission", label: "Commission" }, { key: "flat", label: "Flat Rate" }, { key: "hybrid", label: "Hybrid" }].map((p) => (
+                      <button key={p.key} onClick={() => setFilterPayType(filterPayType === p.key ? "" : p.key)} className={`px-3 py-1.5 rounded-full text-xs border ${filterPayType === p.key ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}>{p.label}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Platform</p>
+                  <div className="flex flex-wrap gap-2">
+                    {["TikTok", "Instagram", "YouTube"].map((p) => (
+                      <button key={p} onClick={() => setFilterPlatform((prev) => prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p])} className={`px-3 py-1.5 rounded-full text-xs border ${filterPlatform.includes(p) ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}>{p}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="flex items-center gap-3">
+                    <input type="checkbox" checked={filterSignOnPay} onChange={(e) => { setFilterSignOnPay(e.target.checked); if (!e.target.checked) setFilterMinSignOnPay(""); }} className="rounded" />
+                    <span className="text-sm text-foreground">Sign-on pay only</span>
+                  </label>
+                  {filterSignOnPay && (
+                    <div className="flex items-center gap-2 mt-2 ml-7">
+                      <span className="text-sm text-muted-foreground">Min $</span>
+                      <Input value={filterMinSignOnPay} onChange={(e) => setFilterMinSignOnPay(e.target.value)} placeholder="0" type="number" className="w-24" />
+                    </div>
+                  )}
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => { setFilterCategory(""); setFilterPayType(""); setFilterPlatform([]); setFilterSignOnPay(false); setFilterMinSignOnPay(""); }}>Clear Filters</Button>
+              </motion.div>
+            )}
 
             <div className="space-y-4">
               {filteredCampaigns.map((c) => {
@@ -271,7 +439,10 @@ const CreatorDashboard = () => {
                             )}
                             {c.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0 text-xs">${c.signOnPay} sign-on pay</Badge>}
                           </div>
-                          <p className="text-sm text-muted-foreground">{c.brand} · {c.category} · {c.platform}</p>
+                          <p className="text-sm text-muted-foreground">
+                            <button className="text-primary hover:underline" onClick={(e) => { e.stopPropagation(); setViewingBrand(c.brand); }}>{c.brand}</button>
+                            {" · "}{c.category} · {c.platform}
+                          </p>
                           <p className="text-xs text-muted-foreground mt-1">{c.payMethod}</p>
                         </div>
                       </div>
@@ -315,7 +486,10 @@ const CreatorDashboard = () => {
                         </Tooltip>
                       )}
                     </div>
-                    <p className="text-muted-foreground">{c.brand} · {c.category}</p>
+                    <p className="text-muted-foreground">
+                      <button className="text-primary hover:underline" onClick={() => { setSelectedCampaign(null); setViewingBrand(c.brand); }}>{c.brand}</button>
+                      {" · "}{c.category}
+                    </p>
                   </div>
                 </div>
 
@@ -572,23 +746,62 @@ const CreatorDashboard = () => {
           </div>
         )}
 
-        {tab === "analytics" && (
+        {tab === "analytics" && !analyticsDetail && (
           <div className="space-y-6">
             <h1 className="font-display text-3xl font-bold text-foreground">Analytics</h1>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
-                { label: "Total Earnings", value: `$${joinedCampaigns.reduce((s, c) => s + c.earnings, 0)}` },
-                { label: "Active Campaigns", value: String(joinedCampaigns.length) },
-                { label: "Total Clicks", value: "0" },
-                { label: "Total Sales", value: "0" },
-                { label: "Pending Earnings", value: "$0" },
-                { label: "AllCall Fee (10%)", value: `$${(joinedCampaigns.reduce((s, c) => s + c.earnings, 0) * 0.1).toFixed(2)}` },
+                { label: "Total Earnings", value: `$${totalEarnings}`, key: "earnings" },
+                { label: "Active Campaigns", value: String(joinedCampaigns.length), key: "campaigns" },
+                { label: "Total Clicks", value: String(totalClicks), key: "clicks" },
+                { label: "Total Sales", value: String(totalSales), key: "sales" },
+                { label: "Pending Earnings", value: "$0", key: "pending" },
+                { label: "AllCall Fee (10%)", value: `$${(totalEarnings * 0.1).toFixed(2)}`, key: "fee" },
               ].map((s) => (
-                <div key={s.label} className={cardClass}>
+                <div key={s.label} className={cardClass + " cursor-pointer hover:shadow-card-hover transition-shadow"} onClick={() => setAnalyticsDetail(s.key)}>
                   <p className="text-sm text-muted-foreground">{s.label}</p>
                   <p className="font-display text-2xl font-bold text-foreground">{s.value}</p>
+                  <p className="text-xs text-primary mt-1">Click for details →</p>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {tab === "analytics" && analyticsDetail && (
+          <div className="space-y-6">
+            <button onClick={() => setAnalyticsDetail(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to analytics</button>
+            <h1 className="font-display text-2xl font-bold text-foreground">
+              {analyticsDetail === "earnings" && "Earnings Breakdown"}
+              {analyticsDetail === "campaigns" && "Campaign Details"}
+              {analyticsDetail === "clicks" && "Clicks Breakdown"}
+              {analyticsDetail === "sales" && "Sales Breakdown"}
+              {analyticsDetail === "pending" && "Pending Earnings"}
+              {analyticsDetail === "fee" && "AllCall Fee Breakdown"}
+            </h1>
+            <div className={sectionCardClass}>
+              {joinedCampaigns.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No campaign data yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {joinedCampaigns.map((c) => (
+                    <div key={c.id} className="flex items-center justify-between p-4 rounded-xl border border-border dark-green-outline">
+                      <div>
+                        <p className="font-semibold text-foreground">{c.product}</p>
+                        <p className="text-xs text-muted-foreground">{c.brand}</p>
+                      </div>
+                      <div className="text-right">
+                        {analyticsDetail === "earnings" && <p className="font-display font-bold text-primary">${c.earnings}</p>}
+                        {analyticsDetail === "clicks" && <p className="font-display font-bold text-foreground">{c.clicks}</p>}
+                        {analyticsDetail === "sales" && <p className="font-display font-bold text-foreground">{c.sales}</p>}
+                        {analyticsDetail === "campaigns" && <Badge className="bg-success/10 text-primary border-0">Active</Badge>}
+                        {analyticsDetail === "pending" && <p className="font-display font-bold text-foreground">$0</p>}
+                        {analyticsDetail === "fee" && <p className="font-display font-bold text-foreground">${(c.earnings * 0.1).toFixed(2)}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
