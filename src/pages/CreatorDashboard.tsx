@@ -7,7 +7,7 @@ import {
   BarChart3, Users, DollarSign, Settings, LogOut, Search, Filter,
   Star, TrendingUp, Link2, ExternalLink, ClipboardCopy, FileText, Eye, Check,
   User, KeyRound, Moon, Sun, Crown, Info, Plus, CreditCard, MoreHorizontal,
-  ChevronLeft, Upload, Video, XCircle, AlertCircle, X as XIcon
+  ChevronLeft, Upload, Video, XCircle, AlertCircle, X as XIcon, MapPin
 } from "lucide-react";
 import {
   Tooltip,
@@ -36,43 +36,50 @@ const CreatorDashboard = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCampaign, setSelectedCampaign] = useState<number | null>(null);
-  const [joinedCampaigns, setJoinedCampaigns] = useState<{ id: number; brand: string; product: string; link: string; code: string; earnings: number; clicks: number; sales: number }[]>([]);
+  const [joinedCampaigns, setJoinedCampaigns] = useState<{ id: number; brand: string; product: string; link: string; code: string; earnings: number; clicks: number; sales: number; revenue: number }[]>([]);
   const [appliedIds, setAppliedIds] = useState<number[]>([]);
   const [masterLinkIds, setMasterLinkIds] = useState<number[]>([]);
-  const [address, setAddress] = useState("");
   const [darkMode, setDarkMode] = useState(false);
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
   const [masterLinkCopied, setMasterLinkCopied] = useState(false);
   const [showAddToMasterLink, setShowAddToMasterLink] = useState(false);
   const [showJoinDialog, setShowJoinDialog] = useState(false);
-  const [joinDialogData, setJoinDialogData] = useState<{ product: string; link: string; code: string } | null>(null);
+  const [joinDialogData, setJoinDialogData] = useState<{ product: string; link: string; code: string; needsProduct?: boolean; productType?: string } | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
-  const [portfolioLinks, setPortfolioLinks] = useState<string[]>([]);
+  const [portfolioLinks, setPortfolioLinks] = useState<{ url: string; description: string }[]>([]);
   const [newPortfolioLink, setNewPortfolioLink] = useState("");
+  const [newPortfolioDesc, setNewPortfolioDesc] = useState("");
   const [showWithdrawConfirm, setShowWithdrawConfirm] = useState<{ id: number; type: "campaign" | "application" } | null>(null);
   const [viewingBrand, setViewingBrand] = useState<string | null>(null);
   const [analyticsDetail, setAnalyticsDetail] = useState<string | null>(null);
+  const [selectedMyCampaign, setSelectedMyCampaign] = useState<number | null>(null);
+  const [analyticsLines, setAnalyticsLines] = useState<string[]>(["earnings"]);
+
+  // Product application flow
+  const [showProductApply, setShowProductApply] = useState(false);
+  const [productApplyAddress, setProductApplyAddress] = useState("");
+  const [productApplyEmail, setProductApplyEmail] = useState("");
+  const [productApplyCampaignId, setProductApplyCampaignId] = useState<number | null>(null);
 
   const [settingsName, setSettingsName] = useState(() => localStorage.getItem("allcall_creator_name") || "");
   const [settingsEmail, setSettingsEmail] = useState(() => localStorage.getItem("allcall_email") || "");
   const [settingsCountry, setSettingsCountry] = useState(() => localStorage.getItem("allcall_country") || "");
+  const [settingsAddress, setSettingsAddress] = useState(() => localStorage.getItem("allcall_creator_address") || "");
   const [settingsPassword, setSettingsPassword] = useState({ current: "", new: "", confirm: "" });
-  const savedAddress = settingsCountry ? `123 Creator St, ${settingsCountry}` : "";
 
   const availableCampaigns = [
-    { id: 1, brand: "GlowBeauty", product: "Summer Glow Serum", category: "Beauty", platform: "TikTok", payMethod: "Hybrid: 5% + $5/100 clicks", signOnPay: 25, isPro: true, topPick: true, needsProduct: true, requireApply: true, image: "" },
-    { id: 2, brand: "FitPro", product: "ProFit Blender", category: "Health", platform: "Instagram", payMethod: "Commission: 8%", signOnPay: 0, isPro: false, topPick: true, needsProduct: false, requireApply: false, image: "" },
-    { id: 3, brand: "TechBite", product: "CodeMaster Keyboard", category: "Tech", platform: "YouTube", payMethod: "Flat: $10/100 clicks", signOnPay: 50, isPro: true, topPick: false, needsProduct: true, requireApply: true, image: "" },
-    { id: 4, brand: "HomeNest", product: "Smart Diffuser", category: "Home", platform: "TikTok", payMethod: "Commission: 6%", signOnPay: 0, isPro: false, topPick: false, needsProduct: false, requireApply: false, image: "" },
-    { id: 5, brand: "EcoLife", product: "Bamboo Water Bottle", category: "Health", platform: "Instagram", payMethod: "Hybrid: 4% + $5/100 clicks", signOnPay: 15, isPro: true, topPick: true, needsProduct: true, requireApply: true, image: "" },
-    { id: 6, brand: "ChargePro", product: "Wireless Charger Pad", category: "Tech", platform: "YouTube", payMethod: "Flat: $12/100 clicks", signOnPay: 0, isPro: false, topPick: false, needsProduct: false, requireApply: true, image: "" },
-    { id: 7, brand: "StyleVault", product: "Oversized Vintage Tee", category: "Fashion", platform: "TikTok", payMethod: "Commission: 12%", signOnPay: 20, isPro: true, topPick: true, needsProduct: true, requireApply: true, image: "" },
-    { id: 8, brand: "PetPals", product: "Organic Dog Treats", category: "Home", platform: "Instagram", payMethod: "Hybrid: 7% + $3/100 clicks", signOnPay: 0, isPro: false, topPick: false, needsProduct: true, requireApply: false, image: "" },
-    { id: 9, brand: "BrewCraft", product: "Cold Brew Maker Kit", category: "Food", platform: "YouTube", payMethod: "Commission: 9%", signOnPay: 30, isPro: true, topPick: false, needsProduct: true, requireApply: true, image: "" },
-    { id: 10, brand: "ZenSkin", product: "Retinol Night Cream", category: "Beauty", platform: "TikTok", payMethod: "Flat: $8/100 clicks", signOnPay: 0, isPro: false, topPick: true, needsProduct: false, requireApply: false, image: "" },
+    { id: 1, brand: "GlowBeauty", product: "Summer Glow Serum", category: "Beauty", platform: "TikTok", payMethod: "Hybrid: 5% + $5/100 clicks", signOnPay: 25, isPro: true, topPick: true, needsProduct: true, requireApply: true, image: "", description: "Promote our bestselling serum with honest skincare reviews.", notes: "Use #GlowBeauty and #SummerGlow", productType: "physical" as const },
+    { id: 2, brand: "FitPro", product: "ProFit Blender", category: "Health", platform: "Instagram", payMethod: "Commission: 8%", signOnPay: 0, isPro: false, topPick: true, needsProduct: false, requireApply: false, image: "", description: "Share your favorite smoothie recipes using our blender.", notes: "", productType: "physical" as const },
+    { id: 3, brand: "TechBite", product: "CodeMaster Keyboard", category: "Tech", platform: "YouTube", payMethod: "Flat: $10/100 clicks", signOnPay: 50, isPro: true, topPick: false, needsProduct: true, requireApply: true, image: "", description: "Review our mechanical keyboard for developers and gamers.", notes: "Focus on typing feel and build quality", productType: "physical" as const },
+    { id: 4, brand: "HomeNest", product: "Smart Diffuser", category: "Home", platform: "TikTok", payMethod: "Commission: 6%", signOnPay: 0, isPro: false, topPick: false, needsProduct: false, requireApply: false, image: "", description: "Feature our smart aroma diffuser in your home setup content.", notes: "", productType: "digital" as const },
+    { id: 5, brand: "EcoLife", product: "Bamboo Water Bottle", category: "Health", platform: "Instagram", payMethod: "Hybrid: 4% + $5/100 clicks", signOnPay: 15, isPro: true, topPick: true, needsProduct: true, requireApply: true, image: "", description: "Eco-friendly hydration for conscious consumers.", notes: "Highlight sustainability", productType: "physical" as const },
+    { id: 6, brand: "ChargePro", product: "Wireless Charger Pad", category: "Tech", platform: "YouTube", payMethod: "Flat: $12/100 clicks", signOnPay: 0, isPro: false, topPick: false, needsProduct: false, requireApply: true, image: "", description: "Showcase fast wireless charging technology.", notes: "", productType: "digital" as const },
+    { id: 7, brand: "StyleVault", product: "Oversized Vintage Tee", category: "Fashion", platform: "TikTok", payMethod: "Commission: 12%", signOnPay: 20, isPro: true, topPick: true, needsProduct: true, requireApply: true, image: "", description: "Style our vintage tees in your outfit-of-the-day content.", notes: "Tag @StyleVault", productType: "physical" as const },
+    { id: 8, brand: "PetPals", product: "Organic Dog Treats", category: "Home", platform: "Instagram", payMethod: "Hybrid: 7% + $3/100 clicks", signOnPay: 0, isPro: false, topPick: false, needsProduct: true, requireApply: false, image: "", description: "Share your pet's reaction to our organic treats.", notes: "", productType: "physical" as const },
+    { id: 9, brand: "BrewCraft", product: "Cold Brew Maker Kit", category: "Food", platform: "YouTube", payMethod: "Commission: 9%", signOnPay: 30, isPro: true, topPick: false, needsProduct: true, requireApply: true, image: "", description: "Make cold brew at home with our kit.", notes: "Show the brewing process", productType: "physical" as const },
+    { id: 10, brand: "ZenSkin", product: "Retinol Night Cream", category: "Beauty", platform: "TikTok", payMethod: "Flat: $8/100 clicks", signOnPay: 0, isPro: false, topPick: true, needsProduct: false, requireApply: false, image: "", description: "Night skincare routine featuring our retinol cream.", notes: "", productType: "digital" as const },
   ];
 
-  // Brand analytics data for when creators click a brand name
   const brandAnalytics: Record<string, { totalPaid: number; campaigns: number; creators: number }> = {
     "GlowBeauty": { totalPaid: 12500, campaigns: 4, creators: 28 },
     "FitPro": { totalPaid: 8200, campaigns: 2, creators: 15 },
@@ -124,19 +131,31 @@ const CreatorDashboard = () => {
       const link = `https://allcall.link/${settingsName.toLowerCase().replace(/\s/g, "")}/${campaign.brand.toLowerCase()}`;
       const code = `${firstName}${Math.floor(Math.random() * 100)}`;
       const newJoined = {
-        id: campaign.id,
-        brand: campaign.brand,
-        product: campaign.product,
-        link,
-        code,
-        earnings: 0,
-        clicks: 0,
-        sales: 0,
+        id: campaign.id, brand: campaign.brand, product: campaign.product, link, code,
+        earnings: 0, clicks: 0, sales: 0, revenue: 0,
       };
       setJoinedCampaigns([...joinedCampaigns, newJoined]);
-      setJoinDialogData({ product: campaign.product, link, code });
+      setJoinDialogData({ product: campaign.product, link, code, needsProduct: campaign.needsProduct, productType: campaign.productType });
       setShowJoinDialog(true);
     }
+  };
+
+  const handleProductApply = (campaignId: number) => {
+    const campaign = availableCampaigns.find((c) => c.id === campaignId);
+    if (!campaign) return;
+    setProductApplyCampaignId(campaignId);
+    // Autofill
+    if (campaign.productType === "physical" && settingsAddress) setProductApplyAddress(settingsAddress);
+    if (campaign.productType === "digital" && settingsEmail) setProductApplyEmail(settingsEmail);
+    setShowProductApply(true);
+  };
+
+  const submitProductApplication = () => {
+    // Just close the dialog - the application is "submitted"
+    setShowProductApply(false);
+    setProductApplyAddress("");
+    setProductApplyEmail("");
+    setProductApplyCampaignId(null);
   };
 
   const getButtonState = (campaign: typeof availableCampaigns[0]) => {
@@ -186,8 +205,9 @@ const CreatorDashboard = () => {
 
   const handleAddPortfolioLink = () => {
     if (newPortfolioLink.trim()) {
-      setPortfolioLinks([...portfolioLinks, newPortfolioLink.trim()]);
+      setPortfolioLinks([...portfolioLinks, { url: newPortfolioLink.trim(), description: newPortfolioDesc.trim() }]);
       setNewPortfolioLink("");
+      setNewPortfolioDesc("");
     }
   };
 
@@ -195,6 +215,7 @@ const CreatorDashboard = () => {
     localStorage.setItem("allcall_creator_name", settingsName);
     localStorage.setItem("allcall_email", settingsEmail);
     localStorage.setItem("allcall_country", settingsCountry);
+    localStorage.setItem("allcall_creator_address", settingsAddress);
   };
 
   const handleLogout = () => {
@@ -214,6 +235,11 @@ const CreatorDashboard = () => {
   const totalEarnings = joinedCampaigns.reduce((s, c) => s + c.earnings, 0);
   const totalClicks = joinedCampaigns.reduce((s, c) => s + c.clicks, 0);
   const totalSales = joinedCampaigns.reduce((s, c) => s + c.sales, 0);
+  const totalRevenue = joinedCampaigns.reduce((s, c) => s + c.revenue, 0);
+
+  const toggleAnalyticsLine = (line: string) => {
+    setAnalyticsLines((prev) => prev.includes(line) ? prev.filter((l) => l !== line) : [...prev, line]);
+  };
 
   return (
     <div className="min-h-screen flex bg-background" style={{ background: darkMode ? undefined : 'linear-gradient(180deg, hsl(145, 30%, 95%) 0%, hsl(150, 20%, 98%) 50%, hsl(0, 0%, 100%) 100%)' }}>
@@ -267,11 +293,53 @@ const CreatorDashboard = () => {
                 <p className="text-xs text-muted-foreground">Your Creator Code</p>
                 <p className="text-lg font-mono font-bold text-primary">{joinDialogData.code}</p>
               </div>
+              {joinDialogData.needsProduct && (
+                <div className="p-3 rounded-lg bg-warning/10 border border-warning/30 space-y-2">
+                  <p className="text-sm font-medium text-foreground">📦 This campaign involves a {joinDialogData.productType === "digital" ? "digital" : "physical"} product</p>
+                  <p className="text-xs text-muted-foreground">Apply for the product to receive it from the brand.</p>
+                  <Button variant="outline" size="sm" onClick={() => {
+                    setShowJoinDialog(false);
+                    const campaign = availableCampaigns.find((c) => c.product === joinDialogData.product);
+                    if (campaign) handleProductApply(campaign.id);
+                  }}>Apply for Product</Button>
+                </div>
+              )}
               <Button variant="hero" className="w-full" onClick={() => { setShowJoinDialog(false); setTab("my-campaigns"); }}>
                 View My Campaigns
               </Button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Product application dialog */}
+      <Dialog open={showProductApply} onOpenChange={setShowProductApply}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Apply for Product</DialogTitle>
+            <DialogDescription>
+              {(() => {
+                const c = availableCampaigns.find((x) => x.id === productApplyCampaignId);
+                return c?.productType === "physical"
+                  ? "Enter your shipping address to receive this product."
+                  : "Enter your email to receive this digital product.";
+              })()}
+            </DialogDescription>
+          </DialogHeader>
+          {(() => {
+            const c = availableCampaigns.find((x) => x.id === productApplyCampaignId);
+            return c?.productType === "physical" ? (
+              <div className="space-y-3">
+                <Input value={productApplyAddress} onChange={(e) => setProductApplyAddress(e.target.value)} placeholder="Your shipping address" />
+                <Button variant="hero" className="w-full" onClick={submitProductApplication} disabled={!productApplyAddress.trim()}>Submit Application</Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <Input value={productApplyEmail} onChange={(e) => setProductApplyEmail(e.target.value)} placeholder="your@email.com" type="email" />
+                <Button variant="hero" className="w-full" onClick={submitProductApplication} disabled={!productApplyEmail.trim()}>Submit Application</Button>
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 
@@ -288,7 +356,7 @@ const CreatorDashboard = () => {
           {sidebarItems.map((item) => (
             <button
               key={item.key}
-              onClick={() => { setTab(item.key); setSelectedCampaign(null); setMenuOpenId(null); setViewingBrand(null); setAnalyticsDetail(null); }}
+              onClick={() => { setTab(item.key); setSelectedCampaign(null); setMenuOpenId(null); setViewingBrand(null); setAnalyticsDetail(null); setSelectedMyCampaign(null); }}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
                 tab === item.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"
               }`}
@@ -341,7 +409,6 @@ const CreatorDashboard = () => {
                               {c.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0 text-xs">${c.signOnPay} sign-on pay</Badge>}
                             </div>
                             <p className="text-sm text-muted-foreground">{c.category} · {c.platform}</p>
-                            <p className="text-xs text-muted-foreground mt-1">{c.payMethod}</p>
                           </div>
                         </div>
                         <div onClick={(e) => e.stopPropagation()}>
@@ -431,9 +498,7 @@ const CreatorDashboard = () => {
                             {c.topPick && <Badge className="bg-warning/10 text-warning border-0 text-xs"><Star className="w-3 h-3 mr-1" /> Top Pick</Badge>}
                             {c.isPro && (
                               <Tooltip>
-                                <TooltipTrigger>
-                                  <Crown className="w-5 h-5 text-warning" />
-                                </TooltipTrigger>
+                                <TooltipTrigger><Crown className="w-5 h-5 text-warning" /></TooltipTrigger>
                                 <TooltipContent>Top Brand — Pro subscription with extended creator attribution windows and priority placement</TooltipContent>
                               </Tooltip>
                             )}
@@ -479,9 +544,7 @@ const CreatorDashboard = () => {
                       <h1 className="font-display text-2xl font-bold text-foreground">{c.product}</h1>
                       {c.isPro && (
                         <Tooltip>
-                          <TooltipTrigger>
-                            <Crown className="w-5 h-5 text-warning" />
-                          </TooltipTrigger>
+                          <TooltipTrigger><Crown className="w-5 h-5 text-warning" /></TooltipTrigger>
                           <TooltipContent>Top Brand — Pro subscription with extended creator attribution windows and priority placement</TooltipContent>
                         </Tooltip>
                       )}
@@ -493,20 +556,15 @@ const CreatorDashboard = () => {
                   </div>
                 </div>
 
+                {c.description && <p className="text-sm text-foreground">{c.description}</p>}
+                {c.notes && <p className="text-sm text-muted-foreground italic">📌 {c.notes}</p>}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Platform</p><p className="font-semibold text-foreground">{c.platform}</p></div>
                   <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Payment</p><p className="font-semibold text-foreground">{c.payMethod}</p></div>
                   {c.signOnPay > 0 && <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Sign-On Pay</p><p className="font-semibold text-primary">${c.signOnPay}</p></div>}
                   <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Product Required</p><p className="font-semibold text-foreground">{c.needsProduct ? "Yes" : "No"}</p></div>
                 </div>
-
-                {c.needsProduct && btnState === "available" && (
-                  <div className="space-y-3">
-                    <p className="text-sm font-medium text-foreground">Delivery Address</p>
-                    <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Your address for product delivery" />
-                    {savedAddress && <Button variant="ghost" size="sm" onClick={() => setAddress(savedAddress)}>Autofill from profile</Button>}
-                  </div>
-                )}
 
                 {btnState === "joined" ? (
                   <Badge className="bg-success/10 text-primary border-0 text-base py-2 px-4"><Check className="w-4 h-4 mr-2" /> Joined</Badge>
@@ -522,11 +580,10 @@ const CreatorDashboard = () => {
           );
         })()}
 
-        {tab === "my-campaigns" && (
+        {tab === "my-campaigns" && !selectedMyCampaign && (
           <div className="space-y-8">
             <h1 className="font-display text-3xl font-bold text-foreground">My Campaigns</h1>
 
-            {/* Active campaigns */}
             <div className="space-y-4">
               <h2 className="font-display text-xl font-semibold text-foreground">Active Campaigns</h2>
               {joinedCampaigns.length === 0 ? (
@@ -534,9 +591,9 @@ const CreatorDashboard = () => {
               ) : (
                 <div className="space-y-3">
                   {joinedCampaigns.map((c) => (
-                    <div key={c.id} className={cardClass}>
+                    <div key={c.id} className={cardClass + " cursor-pointer hover:shadow-card-hover transition-shadow"} onClick={() => setSelectedMyCampaign(c.id)}>
                       <div className="flex items-center justify-between mb-4">
-                        <div className="cursor-pointer" onClick={() => { setTab("feed"); setSelectedCampaign(c.id); }}>
+                        <div>
                           <h3 className="font-display font-bold text-foreground hover:text-primary transition-colors">{c.product}</h3>
                           <p className="text-sm text-muted-foreground">{c.brand}</p>
                         </div>
@@ -545,7 +602,7 @@ const CreatorDashboard = () => {
                             <p className="font-display text-lg font-bold text-primary">${c.earnings}</p>
                             <p className="text-xs text-muted-foreground">earned</p>
                           </div>
-                          <div className="relative">
+                          <div className="relative" onClick={(e) => e.stopPropagation()}>
                             <button onClick={() => setMenuOpenId(menuOpenId === c.id ? null : c.id)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-accent transition-colors">
                               <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
                             </button>
@@ -566,7 +623,7 @@ const CreatorDashboard = () => {
                             <p className="text-xs text-muted-foreground">Affiliate Link</p>
                             <p className="text-sm text-foreground truncate">{c.link}</p>
                           </div>
-                          <button className="text-primary hover:text-primary/80" onClick={() => handleCopyLink(c.link)}>
+                          <button className="text-primary hover:text-primary/80" onClick={(e) => { e.stopPropagation(); handleCopyLink(c.link); }}>
                             {copiedLink === c.link ? <Check className="w-4 h-4" /> : <ClipboardCopy className="w-4 h-4" />}
                           </button>
                         </div>
@@ -575,18 +632,12 @@ const CreatorDashboard = () => {
                           <p className="text-sm font-mono font-bold text-primary">{c.code}</p>
                         </div>
                       </div>
-                      {!masterLinkIds.includes(c.id) && (
-                        <Button variant="ghost" size="sm" className="mt-3" onClick={() => setMasterLinkIds([...masterLinkIds, c.id])}>
-                          + Add to Master Link
-                        </Button>
-                      )}
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* Pending applications */}
             <div className="space-y-4">
               <h2 className="font-display text-xl font-semibold text-foreground">Pending Applications</h2>
               {appliedIds.length === 0 ? (
@@ -627,14 +678,62 @@ const CreatorDashboard = () => {
           </div>
         )}
 
+        {/* My campaign detail */}
+        {tab === "my-campaigns" && selectedMyCampaign && (() => {
+          const joined = joinedCampaigns.find((c) => c.id === selectedMyCampaign);
+          const campaign = availableCampaigns.find((c) => c.id === selectedMyCampaign);
+          if (!joined || !campaign) return null;
+          return (
+            <div className="max-w-2xl space-y-6">
+              <button onClick={() => setSelectedMyCampaign(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to my campaigns</button>
+              <div className={sectionCardClass + " space-y-6"}>
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-2xl">{campaign.brand[0]}</div>
+                  <div>
+                    <h1 className="font-display text-2xl font-bold text-foreground">{campaign.product}</h1>
+                    <p className="text-muted-foreground">{campaign.brand} · {campaign.category}</p>
+                  </div>
+                </div>
+                {campaign.description && <p className="text-sm text-foreground">{campaign.description}</p>}
+                {campaign.notes && <p className="text-sm text-muted-foreground italic">📌 {campaign.notes}</p>}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Platform</p><p className="font-semibold text-foreground">{campaign.platform}</p></div>
+                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Payment</p><p className="font-semibold text-foreground">{campaign.payMethod}</p></div>
+                  {campaign.signOnPay > 0 && <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Sign-On Pay</p><p className="font-semibold text-primary">${campaign.signOnPay}</p></div>}
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50 flex items-center justify-between dark-green-outline">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Your Affiliate Link</p>
+                    <p className="text-sm text-foreground truncate font-mono">{joined.link}</p>
+                  </div>
+                  <button className="text-primary hover:text-primary/80" onClick={() => handleCopyLink(joined.link)}>
+                    {copiedLink === joined.link ? <Check className="w-4 h-4" /> : <ClipboardCopy className="w-4 h-4" />}
+                  </button>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50 dark-green-outline">
+                  <p className="text-xs text-muted-foreground">Your Creator Code</p>
+                  <p className="text-lg font-mono font-bold text-primary">{joined.code}</p>
+                </div>
+              </div>
+              <div className={sectionCardClass}>
+                <h2 className="font-display text-lg font-semibold text-foreground mb-4">Your Performance</h2>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Earnings</p><p className="font-display text-xl font-bold text-primary">${joined.earnings}</p></div>
+                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Clicks</p><p className="font-display text-xl font-bold text-foreground">{joined.clicks}</p></div>
+                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Sales</p><p className="font-display text-xl font-bold text-foreground">{joined.sales}</p></div>
+                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Revenue for Brand</p><p className="font-display text-xl font-bold text-foreground">${joined.revenue}</p></div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {tab === "master-link" && (
           <div className="space-y-6">
             <div className="flex items-center gap-3">
               <h1 className="font-display text-3xl font-bold text-foreground">Master Link Page</h1>
               <Tooltip>
-                <TooltipTrigger>
-                  <Info className="w-5 h-5 text-muted-foreground" />
-                </TooltipTrigger>
+                <TooltipTrigger><Info className="w-5 h-5 text-muted-foreground" /></TooltipTrigger>
                 <TooltipContent className="max-w-xs">A master link is a single page that contains all your active campaign affiliate links and discount codes. Share one link in your bio instead of multiple.</TooltipContent>
               </Tooltip>
             </div>
@@ -717,23 +816,27 @@ const CreatorDashboard = () => {
 
             <div className={sectionCardClass + " space-y-4"}>
               <h2 className="font-display text-lg font-semibold text-foreground">Add Video / Link</h2>
-              <div className="flex gap-3">
-                <Input value={newPortfolioLink} onChange={(e) => setNewPortfolioLink(e.target.value)} placeholder="https://tiktok.com/@you/video123 or YouTube link" className="flex-1" />
+              <div className="space-y-3">
+                <Input value={newPortfolioLink} onChange={(e) => setNewPortfolioLink(e.target.value)} placeholder="https://tiktok.com/@you/video123 or YouTube link" />
+                <Input value={newPortfolioDesc} onChange={(e) => setNewPortfolioDesc(e.target.value)} placeholder="Brief description of this content (optional)" />
                 <Button variant="hero" onClick={handleAddPortfolioLink}>Add</Button>
               </div>
             </div>
 
             {portfolioLinks.length > 0 ? (
               <div className="space-y-3">
-                {portfolioLinks.map((link, i) => (
-                  <div key={i} className={cardClass + " flex items-center justify-between"}>
-                    <div className="flex items-center gap-3">
-                      <Video className="w-5 h-5 text-primary" />
-                      <a href={link} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline truncate max-w-md">{link}</a>
+                {portfolioLinks.map((item, i) => (
+                  <div key={i} className={cardClass + " space-y-2"}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Video className="w-5 h-5 text-primary" />
+                        <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline truncate max-w-md">{item.url}</a>
+                      </div>
+                      <button onClick={() => setPortfolioLinks(portfolioLinks.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-destructive">
+                        <XCircle className="w-4 h-4" />
+                      </button>
                     </div>
-                    <button onClick={() => setPortfolioLinks(portfolioLinks.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-destructive">
-                      <XCircle className="w-4 h-4" />
-                    </button>
+                    {item.description && <p className="text-xs text-muted-foreground ml-8">{item.description}</p>}
                   </div>
                 ))}
               </div>
@@ -755,15 +858,40 @@ const CreatorDashboard = () => {
                 { label: "Active Campaigns", value: String(joinedCampaigns.length), key: "campaigns" },
                 { label: "Total Clicks", value: String(totalClicks), key: "clicks" },
                 { label: "Total Sales", value: String(totalSales), key: "sales" },
-                { label: "Pending Earnings", value: "$0", key: "pending" },
-                { label: "AllCall Fee (10%)", value: `$${(totalEarnings * 0.1).toFixed(2)}`, key: "fee" },
+                { label: "Revenue for Brands", value: `$${totalRevenue}`, key: "revenue" },
               ].map((s) => (
                 <div key={s.label} className={cardClass + " cursor-pointer hover:shadow-card-hover transition-shadow"} onClick={() => setAnalyticsDetail(s.key)}>
                   <p className="text-sm text-muted-foreground">{s.label}</p>
                   <p className="font-display text-2xl font-bold text-foreground">{s.value}</p>
+                  {s.key === "earnings" && <p className="text-xs text-muted-foreground mt-1">A 10% platform fee applies to all creator earnings to support AllCall's services and infrastructure.</p>}
                   <p className="text-xs text-primary mt-1">Click for details →</p>
                 </div>
               ))}
+            </div>
+
+            {/* Line graph placeholder */}
+            <div className={sectionCardClass + " space-y-4"}>
+              <h2 className="font-display text-lg font-semibold text-foreground">Performance Over Time</h2>
+              <div className="flex flex-wrap gap-2 mb-4">
+                {[
+                  { key: "earnings", label: "Earnings", color: "bg-primary" },
+                  { key: "clicks", label: "Clicks", color: "bg-blue-500" },
+                  { key: "sales", label: "Sales", color: "bg-orange-500" },
+                  { key: "campaigns", label: "Campaigns Joined", color: "bg-purple-500" },
+                ].map((line) => (
+                  <button key={line.key} onClick={() => toggleAnalyticsLine(line.key)} className={`px-3 py-1.5 rounded-full text-xs border flex items-center gap-2 ${analyticsLines.includes(line.key) ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}>
+                    <div className={`w-2 h-2 rounded-full ${line.color}`} />
+                    {line.label}
+                  </button>
+                ))}
+              </div>
+              <div className="h-48 rounded-xl bg-muted/30 flex items-center justify-center border border-border dark-green-outline">
+                <div className="text-center">
+                  <TrendingUp className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">Performance graph will populate as you earn</p>
+                  <p className="text-xs text-muted-foreground">Showing: {analyticsLines.join(", ")}</p>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -776,8 +904,7 @@ const CreatorDashboard = () => {
               {analyticsDetail === "campaigns" && "Campaign Details"}
               {analyticsDetail === "clicks" && "Clicks Breakdown"}
               {analyticsDetail === "sales" && "Sales Breakdown"}
-              {analyticsDetail === "pending" && "Pending Earnings"}
-              {analyticsDetail === "fee" && "AllCall Fee Breakdown"}
+              {analyticsDetail === "revenue" && "Revenue Breakdown"}
             </h1>
             <div className={sectionCardClass}>
               {joinedCampaigns.length === 0 ? (
@@ -795,8 +922,7 @@ const CreatorDashboard = () => {
                         {analyticsDetail === "clicks" && <p className="font-display font-bold text-foreground">{c.clicks}</p>}
                         {analyticsDetail === "sales" && <p className="font-display font-bold text-foreground">{c.sales}</p>}
                         {analyticsDetail === "campaigns" && <Badge className="bg-success/10 text-primary border-0">Active</Badge>}
-                        {analyticsDetail === "pending" && <p className="font-display font-bold text-foreground">$0</p>}
-                        {analyticsDetail === "fee" && <p className="font-display font-bold text-foreground">${(c.earnings * 0.1).toFixed(2)}</p>}
+                        {analyticsDetail === "revenue" && <p className="font-display font-bold text-foreground">${c.revenue}</p>}
                       </div>
                     </div>
                   ))}
@@ -825,7 +951,10 @@ const CreatorDashboard = () => {
                 </select>
                 <p className="text-xs text-muted-foreground mt-1">More country support coming soon.</p>
               </div>
-              <div><label className="text-sm font-medium text-foreground">Address (for product delivery)</label><Input value={savedAddress} readOnly /></div>
+              <div>
+                <label className="text-sm font-medium text-foreground">Address (for product delivery)</label>
+                <Input value={settingsAddress} onChange={(e) => setSettingsAddress(e.target.value)} placeholder="Your address for product delivery" />
+              </div>
             </div>
 
             <div className={sectionCardClass + " space-y-4"}>
