@@ -7,7 +7,7 @@ import {
   BarChart3, Plus, Users, DollarSign, Settings, Eye, LogOut, Search,
   Bell, Lock, TrendingUp, Filter, Send, Check, X as XIcon,
   Package, Link2, MoreHorizontal, Star, Info, Moon, Sun, User, KeyRound, Crown, CreditCard,
-  ChevronLeft, Image as ImageIcon, AlertCircle, UserX, Ban
+  ChevronLeft, Image as ImageIcon, AlertCircle, UserX, Ban, Upload, MapPin
 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
@@ -15,11 +15,18 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 const brandCategories = [
   "Fashion & Apparel", "Beauty & Skincare", "Health & Wellness", "Food & Beverage",
   "Tech & Electronics", "Home & Living", "Sports & Fitness", "Travel & Hospitality",
-  "Education", "Finance", "Entertainment", "Automotive", "Pet Products", "Other",
+  "Education", "Finance", "Entertainment", "Automotive", "Pet Products",
 ];
 
 const categoryMap: Record<string, string> = {
@@ -33,7 +40,7 @@ const categoryMap: Record<string, string> = {
   "Travel & Hospitality": "Travel",
 };
 
-const campaignCategories = ["Beauty", "Health", "Tech", "Fashion", "Food", "Sports", "Travel", "Home", "Education", "Finance", "Entertainment", "Automotive", "Pet Products", "Other"];
+const campaignCategories = ["Beauty", "Health", "Tech", "Fashion", "Food", "Sports", "Travel", "Home", "Education", "Finance", "Entertainment", "Automotive", "Pet Products", "All"];
 
 type Campaign = {
   id: number;
@@ -51,6 +58,13 @@ type Campaign = {
   notes?: string;
   discount?: string;
   creatorCode?: boolean;
+  paidProduct?: boolean;
+  productType?: "physical" | "digital";
+  adPlatforms?: string[];
+  filterFollowers?: boolean;
+  minFollowers?: number;
+  followerFilterType?: string[];
+  filterCategories?: string[];
 };
 
 type Application = {
@@ -62,6 +76,9 @@ type Application = {
   campaignId: number;
   campaignName: string;
   status: "pending" | "accepted" | "denied";
+  address?: string;
+  email?: string;
+  isSimulated?: boolean;
 };
 
 type Tab = "dashboard" | "campaigns" | "new-campaign" | "applications" | "creators" | "analytics" | "creator-view" | "settings";
@@ -99,6 +116,7 @@ const BrandDashboard = () => {
   const [creatorFilterPlatform, setCreatorFilterPlatform] = useState<string[]>([]);
   const [creatorFilterMinFollowers, setCreatorFilterMinFollowers] = useState(0);
   const [creatorFilterFollowersInput, setCreatorFilterFollowersInput] = useState("0");
+  const [creatorFilterCountry, setCreatorFilterCountry] = useState("");
   const [invitedCreators, setInvitedCreators] = useState<{ name: string; campaignId: number }[]>([]);
   const [inviteCampaignSelect, setInviteCampaignSelect] = useState<string | null>(null);
   const [inviteCampaignId, setInviteCampaignId] = useState<number | null>(null);
@@ -106,15 +124,25 @@ const BrandDashboard = () => {
   const [showRemoveCreator, setShowRemoveCreator] = useState<{ name: string; campaignId: number } | null>(null);
   const [showBlockConfirm, setShowBlockConfirm] = useState<string | null>(null);
 
+  // Simulate application
+  const [showSimulate, setShowSimulate] = useState(false);
+  const [simulateCampaignId, setSimulateCampaignId] = useState<number | null>(null);
+  // Fake creator
+  const [showFakeCreator, setShowFakeCreator] = useState(false);
+  const [fakeCreatorCampaignId, setFakeCreatorCampaignId] = useState<number | null>(null);
+  // Product approval
+  const [showProductApproval, setShowProductApproval] = useState<Application | null>(null);
+
   const [settingsName, setSettingsName] = useState(() => localStorage.getItem("allcall_brand_name") || "");
   const [settingsEmail, setSettingsEmail] = useState(() => localStorage.getItem("allcall_email") || "");
   const [settingsCountry, setSettingsCountry] = useState(() => localStorage.getItem("allcall_country") || "");
   const [settingsPassword, setSettingsPassword] = useState({ current: "", new: "", confirm: "" });
+  const [settingsLogo, setSettingsLogo] = useState<string | null>(() => localStorage.getItem("allcall_brand_logo"));
 
   const savedCategories: string[] = (() => {
     try { return JSON.parse(localStorage.getItem("allcall_categories") || "[]"); } catch { return []; }
   })();
-  const defaultCampaignCategory = savedCategories.length > 0 ? (categoryMap[savedCategories[0]] || "Other") : "";
+  const defaultCampaignCategory = savedCategories.length > 0 ? (categoryMap[savedCategories[0]] || savedCategories[0]) : "";
 
   const [campaignForm, setCampaignForm] = useState({
     name: "", category: defaultCampaignCategory, description: "", link: "", notes: "",
@@ -134,11 +162,11 @@ const BrandDashboard = () => {
   const [inviteConfirmation, setInviteConfirmation] = useState<string | null>(null);
 
   const allCreators = [
-    { name: "Emily Chen", platform: "TikTok", followers: "89K", followersNum: 89000, category: "Beauty", match: 95, bio: "Beauty and skincare content creator sharing honest reviews and tutorials.", portfolio: ["https://tiktok.com/@emilychen/video1"], platforms: [{ name: "TikTok", followers: "89K" }, { name: "Instagram", followers: "23K" }], totalFollowers: 112000, revenue: 2400, campaigns: 5, sales: 142, clicks: 3200 },
-    { name: "Jake Torres", platform: "Instagram", followers: "62K", followersNum: 62000, category: "Health", match: 88, bio: "Fitness enthusiast and wellness advocate. Sharing healthy lifestyle tips.", portfolio: [], platforms: [{ name: "Instagram", followers: "62K" }, { name: "YouTube", followers: "18K" }], totalFollowers: 80000, revenue: 1800, campaigns: 3, sales: 95, clicks: 2100 },
-    { name: "Priya Sharma", platform: "YouTube", followers: "145K", followersNum: 145000, category: "Tech", match: 82, bio: "Tech reviewer covering the latest gadgets and software.", portfolio: ["https://youtube.com/priyatech/review1"], platforms: [{ name: "YouTube", followers: "145K" }, { name: "TikTok", followers: "34K" }], totalFollowers: 179000, revenue: 5200, campaigns: 8, sales: 310, clicks: 7800 },
-    { name: "Maya Lee", platform: "TikTok", followers: "34K", followersNum: 34000, category: "Fashion", match: 78, bio: "Fashion and style creator focusing on affordable outfits and trends.", portfolio: [], platforms: [{ name: "TikTok", followers: "34K" }], totalFollowers: 34000, revenue: 900, campaigns: 2, sales: 48, clicks: 1200 },
-    { name: "Carlos R.", platform: "Instagram", followers: "21K", followersNum: 21000, category: "Fitness", match: 72, bio: "Personal trainer and nutrition coach creating workout content.", portfolio: [], platforms: [{ name: "Instagram", followers: "21K" }, { name: "TikTok", followers: "8K" }], totalFollowers: 29000, revenue: 650, campaigns: 1, sales: 32, clicks: 800 },
+    { name: "Emily Chen", platform: "TikTok", followers: "89K", followersNum: 89000, category: "Beauty", match: 95, bio: "Beauty and skincare content creator sharing honest reviews and tutorials.", portfolio: [{ url: "https://tiktok.com/@emilychen/video1", description: "Summer skincare routine review" }], platforms: [{ name: "TikTok", followers: "89K" }, { name: "Instagram", followers: "23K" }], totalFollowers: 112000, revenue: 2400, campaigns: 5, sales: 142, clicks: 3200, country: "United States" },
+    { name: "Jake Torres", platform: "Instagram", followers: "62K", followersNum: 62000, category: "Health", match: 88, bio: "Fitness enthusiast and wellness advocate. Sharing healthy lifestyle tips.", portfolio: [], platforms: [{ name: "Instagram", followers: "62K" }, { name: "YouTube", followers: "18K" }], totalFollowers: 80000, revenue: 1800, campaigns: 3, sales: 95, clicks: 2100, country: "United States" },
+    { name: "Priya Sharma", platform: "YouTube", followers: "145K", followersNum: 145000, category: "Tech", match: 82, bio: "Tech reviewer covering the latest gadgets and software.", portfolio: [{ url: "https://youtube.com/priyatech/review1", description: "Latest flagship phone comparison" }], platforms: [{ name: "YouTube", followers: "145K" }, { name: "TikTok", followers: "34K" }], totalFollowers: 179000, revenue: 5200, campaigns: 8, sales: 310, clicks: 7800, country: "United Kingdom" },
+    { name: "Maya Lee", platform: "TikTok", followers: "34K", followersNum: 34000, category: "Fashion", match: 78, bio: "Fashion and style creator focusing on affordable outfits and trends.", portfolio: [], platforms: [{ name: "TikTok", followers: "34K" }], totalFollowers: 34000, revenue: 900, campaigns: 2, sales: 48, clicks: 1200, country: "Canada" },
+    { name: "Carlos R.", platform: "Instagram", followers: "21K", followersNum: 21000, category: "Fitness", match: 72, bio: "Personal trainer and nutrition coach creating workout content.", portfolio: [], platforms: [{ name: "Instagram", followers: "21K" }, { name: "TikTok", followers: "8K" }], totalFollowers: 29000, revenue: 650, campaigns: 1, sales: 32, clicks: 800, country: "United States" },
   ];
 
   const getCreatorRelation = (creatorName: string): "active" | "past" | null => {
@@ -159,10 +187,10 @@ const BrandDashboard = () => {
     if (creatorSearch && !cr.name.toLowerCase().includes(creatorSearch.toLowerCase())) return false;
     if (creatorFilterPlatform.length > 0 && !creatorFilterPlatform.includes(cr.platform)) return false;
     if (creatorFilterMinFollowers > 0 && cr.followersNum < creatorFilterMinFollowers) return false;
+    if (creatorFilterCountry && cr.country !== creatorFilterCountry) return false;
     return true;
   });
 
-  const invitedCreatorsForTab = creatorListTab === "my" ? [] : invitedCreators;
   const invitedNotJoined = invitedCreators.filter((ic) => {
     const relation = getCreatorRelation(ic.name);
     return relation !== "active";
@@ -196,6 +224,12 @@ const BrandDashboard = () => {
     setApplications((prev) => {
       const app = prev.find((a) => a.id === appId);
       if (!app) return prev;
+      // Check if campaign needs product
+      const campaign = campaigns.find((c) => c.id === app.campaignId);
+      if (campaign?.paidProduct) {
+        setShowProductApproval(app);
+        return prev;
+      }
       setCampaigns((cPrev) => cPrev.map((c) => {
         if (c.id === app.campaignId) {
           return {
@@ -210,6 +244,25 @@ const BrandDashboard = () => {
       }));
       return prev.map((a) => a.id === appId ? { ...a, status: "accepted" as const } : a);
     });
+  };
+
+  const confirmProductApproval = () => {
+    if (!showProductApproval) return;
+    const app = showProductApproval;
+    setCampaigns((cPrev) => cPrev.map((c) => {
+      if (c.id === app.campaignId) {
+        return {
+          ...c,
+          activeCreators: [
+            ...c.activeCreators,
+            { name: app.creator, platform: app.platform, followers: app.followers, clicks: 0, sales: 0, earnings: 0 },
+          ],
+        };
+      }
+      return c;
+    }));
+    setApplications((prev) => prev.map((a) => a.id === app.id ? { ...a, status: "accepted" as const } : a));
+    setShowProductApproval(null);
   };
 
   const handleDenyApplication = (appId: number) => {
@@ -249,6 +302,13 @@ const BrandDashboard = () => {
     notes: campaignForm.notes,
     discount: campaignForm.discount,
     creatorCode: campaignForm.creatorCode,
+    paidProduct: campaignForm.paidProduct,
+    productType: campaignForm.productType,
+    adPlatforms: campaignForm.adPlatforms,
+    filterFollowers: campaignForm.filterFollowers,
+    minFollowers: campaignForm.minFollowers,
+    followerFilterType: campaignForm.followerFilterType,
+    filterCategories: campaignForm.filterCategories,
   });
 
   const handleShowLaunchPreview = () => {
@@ -291,6 +351,22 @@ const BrandDashboard = () => {
 
   const handleEditCampaign = (campaign: Campaign) => {
     setEditingCampaignId(campaign.id);
+    // Parse pay method back
+    let payMethod: "commission" | "flat" | "hybrid" = "hybrid";
+    let commissionRate = "5", flatRate = "5", flatPer = "100";
+    if (campaign.payMethod.startsWith("Hybrid")) {
+      payMethod = "hybrid";
+      const match = campaign.payMethod.match(/(\d+)%.*\$(\d+)\/(\d+)/);
+      if (match) { commissionRate = match[1]; flatRate = match[2]; flatPer = match[3]; }
+    } else if (campaign.payMethod.startsWith("Commission")) {
+      payMethod = "commission";
+      const match = campaign.payMethod.match(/(\d+)%/);
+      if (match) commissionRate = match[1];
+    } else {
+      payMethod = "flat";
+      const match = campaign.payMethod.match(/\$(\d+)\/(\d+)/);
+      if (match) { flatRate = match[1]; flatPer = match[2]; }
+    }
     setCampaignForm({
       name: campaign.name,
       category: campaign.category,
@@ -299,17 +375,19 @@ const BrandDashboard = () => {
       notes: campaign.notes || "",
       creatorCode: campaign.creatorCode ?? true,
       discount: campaign.discount || "10",
-      payMethod: (campaign.payMethod.startsWith("Hybrid") ? "hybrid" : campaign.payMethod.startsWith("Commission") ? "commission" : "flat") as any,
-      commissionRate: "5", flatRate: "5", flatPer: "100",
+      payMethod,
+      commissionRate, flatRate, flatPer,
       requireApply: campaign.requireApply,
-      paidProduct: false, productType: "physical",
+      paidProduct: campaign.paidProduct || false,
+      productType: campaign.productType || "physical",
       photos: campaign.images || [],
       platforms: campaign.platforms,
-      filterFollowers: false, minFollowers: 1000,
-      followerFilterType: [],
-      filterCategories: [],
+      filterFollowers: campaign.filterFollowers || false,
+      minFollowers: campaign.minFollowers || 1000,
+      followerFilterType: campaign.followerFilterType || [],
+      filterCategories: campaign.filterCategories || [],
       signOnPay: campaign.signOnPay > 0 ? String(campaign.signOnPay) : "",
-      adPlatforms: [],
+      adPlatforms: campaign.adPlatforms || [],
     });
     setTab("new-campaign");
     setMenuOpenId(null);
@@ -341,7 +419,6 @@ const BrandDashboard = () => {
 
   const handleBlockCreator = (name: string) => {
     setBlockedCreators((prev) => [...prev, name]);
-    // Remove from all campaigns
     setCampaigns((prev) => prev.map((c) => ({
       ...c,
       activeCreators: c.activeCreators.filter((cr) => cr.name !== name),
@@ -350,10 +427,61 @@ const BrandDashboard = () => {
     setSelectedCreatorDetail(null);
   };
 
+  const handleSimulateApplication = () => {
+    if (!simulateCampaignId) return;
+    const campaign = campaigns.find((c) => c.id === simulateCampaignId);
+    if (!campaign) return;
+    const fakeNames = ["Alex Johnson", "Sam Williams", "Jordan Lee", "Taylor Brown", "Morgan Davis"];
+    const fakeName = fakeNames[Math.floor(Math.random() * fakeNames.length)];
+    const newApp: Application = {
+      id: Date.now(),
+      creator: fakeName,
+      platform: "TikTok",
+      followers: `${Math.floor(Math.random() * 100 + 10)}K`,
+      category: campaign.category,
+      campaignId: campaign.id,
+      campaignName: campaign.name,
+      status: "pending",
+      address: campaign.paidProduct && campaign.productType === "physical" ? "123 Fake St, Los Angeles, CA 90001" : undefined,
+      email: campaign.paidProduct && campaign.productType === "digital" ? `${fakeName.toLowerCase().replace(" ", ".")}@email.com` : undefined,
+      isSimulated: true,
+    };
+    setApplications((prev) => [...prev, newApp]);
+    setShowSimulate(false);
+    setSimulateCampaignId(null);
+  };
+
+  const handleCreateFakeCreator = () => {
+    if (!fakeCreatorCampaignId) return;
+    const fakeNames = ["Riley Martinez", "Avery Clark", "Quinn Thompson", "Harper Wilson"];
+    const fakeName = fakeNames[Math.floor(Math.random() * fakeNames.length)];
+    setCampaigns((prev) => prev.map((c) => {
+      if (c.id === fakeCreatorCampaignId) {
+        return {
+          ...c,
+          activeCreators: [
+            ...c.activeCreators,
+            { name: fakeName, platform: "Instagram", followers: `${Math.floor(Math.random() * 50 + 5)}K`, clicks: 0, sales: 0, earnings: 0 },
+          ],
+        };
+      }
+      return c;
+    }));
+    setShowFakeCreator(false);
+    setFakeCreatorCampaignId(null);
+  };
+
   const handleSaveSettings = () => {
     localStorage.setItem("allcall_brand_name", settingsName);
     localStorage.setItem("allcall_email", settingsEmail);
     localStorage.setItem("allcall_country", settingsCountry);
+    if (settingsLogo) localStorage.setItem("allcall_brand_logo", settingsLogo);
+    else localStorage.removeItem("allcall_brand_logo");
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) setSettingsLogo(URL.createObjectURL(file));
   };
 
   const handleLogout = () => {
@@ -385,6 +513,7 @@ const BrandDashboard = () => {
   const confirmDelete = (id: number) => {
     setCampaigns((prev) => prev.filter((c) => c.id !== id));
     setShowDeleteConfirm(null);
+    setSelectedCampaignId(null);
   };
 
   const handleDeactivateCampaign = (id: number) => {
@@ -410,19 +539,36 @@ const BrandDashboard = () => {
   const activeCampaigns = campaigns.filter((c) => c.status === "active");
 
   const exampleCreatorCampaigns = [
-    { name: "Hydra Glow Moisturizer", brand: "GlowSkin Co.", category: "Beauty", platform: "TikTok", payMethod: "Hybrid: 6% + $8/100 clicks", signOnPay: 30, isPro: true, requireApply: true },
-    { name: "ProFit Protein Shake", brand: "FitLife Labs", category: "Health", platform: "Instagram", payMethod: "Commission: 10%", signOnPay: 0, isPro: false, requireApply: false },
-    { name: "AirPod Max Clone", brand: "TechBuddy", category: "Tech", platform: "YouTube", payMethod: "Flat: $15/100 clicks", signOnPay: 50, isPro: true, requireApply: true },
-    { name: "Cozy Candle Set", brand: "HomeNest", category: "Home", platform: "TikTok", payMethod: "Commission: 5%", signOnPay: 0, isPro: false, requireApply: false },
-    { name: "Bamboo Water Bottle", brand: "EcoLife", category: "Health", platform: "Instagram", payMethod: "Hybrid: 4% + $5/100 clicks", signOnPay: 15, isPro: true, requireApply: true },
-    { name: "Wireless Charger Pad", brand: "ChargePro", category: "Tech", platform: "YouTube", payMethod: "Flat: $12/100 clicks", signOnPay: 0, isPro: false, requireApply: true },
+    { name: "Hydra Glow Moisturizer", brand: "GlowSkin Co.", category: "Beauty", platform: "TikTok", payMethod: "Hybrid: 6% + $8/100 clicks", signOnPay: 30, isPro: true, requireApply: true, description: "Promote our bestselling moisturizer to your audience with honest reviews.", notes: "Use #GlowSkin and #HydraGlow in your posts" },
+    { name: "ProFit Protein Shake", brand: "FitLife Labs", category: "Health", platform: "Instagram", payMethod: "Commission: 10%", signOnPay: 0, isPro: false, requireApply: false, description: "Share your fitness journey with our protein shake.", notes: "" },
+    { name: "AirPod Max Clone", brand: "TechBuddy", category: "Tech", platform: "YouTube", payMethod: "Flat: $15/100 clicks", signOnPay: 50, isPro: true, requireApply: true, description: "Review our premium wireless headphones.", notes: "Focus on sound quality and comfort" },
+    { name: "Cozy Candle Set", brand: "HomeNest", category: "Home", platform: "TikTok", payMethod: "Commission: 5%", signOnPay: 0, isPro: false, requireApply: false, description: "Feature our artisan candle collection in your lifestyle content.", notes: "" },
+    { name: "Bamboo Water Bottle", brand: "EcoLife", category: "Health", platform: "Instagram", payMethod: "Hybrid: 4% + $5/100 clicks", signOnPay: 15, isPro: true, requireApply: true, description: "Eco-friendly hydration for the conscious consumer.", notes: "Highlight sustainability angle" },
+    { name: "Wireless Charger Pad", brand: "ChargePro", category: "Tech", platform: "YouTube", payMethod: "Flat: $12/100 clicks", signOnPay: 0, isPro: false, requireApply: true, description: "Showcase our fast wireless charging technology.", notes: "" },
   ];
 
   const cardClass = "p-5 rounded-2xl bg-card border border-border shadow-card dark-green-outline";
   const sectionCardClass = "bg-card border border-border rounded-2xl p-6 shadow-card dark-green-outline";
 
-  // Available follower filter platforms = only those selected in adPlatforms
   const availableFollowerPlatforms = campaignForm.adPlatforms.length > 0 ? [...campaignForm.adPlatforms, "total"] : ["TikTok", "Instagram", "YouTube", "Twitter/X", "Facebook", "total"];
+
+  const brandLogo = settingsLogo;
+
+  // 3-dot menu for campaign detail
+  const renderCampaignMenu = (campaign: Campaign, menuKey: number) => (
+    <div className="relative" onClick={(e) => e.stopPropagation()}>
+      <button onClick={() => setMenuOpenId(menuOpenId === menuKey ? null : menuKey)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-accent transition-colors">
+        <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+      </button>
+      {menuOpenId === menuKey && (
+        <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="absolute right-0 top-10 bg-card border border-border rounded-xl shadow-lg z-20 w-44 overflow-hidden">
+          <button onClick={() => handleEditCampaign(campaign)} className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors">Edit Campaign</button>
+          <button onClick={() => handleDeactivateCampaign(campaign.id)} className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors">{campaign.status === "active" ? "Deactivate" : "Activate"}</button>
+          <button onClick={() => handleDeleteCampaign(campaign.id)} className="w-full text-left px-4 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors">Delete Campaign</button>
+        </motion.div>
+      )}
+    </div>
+  );
 
   return (
     <div className="min-h-screen flex bg-background" style={{ background: darkMode ? undefined : 'linear-gradient(180deg, hsl(145, 30%, 95%) 0%, hsl(150, 20%, 98%) 50%, hsl(0, 0%, 100%) 100%)' }}>
@@ -530,6 +676,72 @@ const BrandDashboard = () => {
         </div>
       )}
 
+      {/* Product approval confirmation */}
+      {showProductApproval && (() => {
+        const campaign = campaigns.find((c) => c.id === showProductApproval.campaignId);
+        return (
+          <Dialog open={!!showProductApproval} onOpenChange={() => setShowProductApproval(null)}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle className="text-foreground">Confirm Product Delivery</DialogTitle>
+                <DialogDescription>
+                  Do you want to send <span className="font-semibold">{campaign?.name || "product"}</span> to <span className="font-semibold">{showProductApproval.creator}</span> at {campaign?.productType === "physical" ? showProductApproval.address || "their address" : showProductApproval.email || "their email"}?
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex gap-3 justify-end">
+                <Button variant="hero" onClick={confirmProductApproval}>Confirm & Accept</Button>
+                <Button variant="outline" onClick={() => setShowProductApproval(null)}>Cancel</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
+
+      {/* Simulate application dialog */}
+      <Dialog open={showSimulate} onOpenChange={setShowSimulate}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Simulate Creator Application</DialogTitle>
+            <DialogDescription>Choose which campaign to simulate an application for.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {campaigns.filter((c) => c.status === "active").map((c) => (
+              <button key={c.id} onClick={() => setSimulateCampaignId(c.id)} className={`w-full text-left p-3 rounded-xl border text-sm transition-colors ${simulateCampaignId === c.id ? "border-primary bg-primary/5 text-primary" : "border-border text-foreground hover:bg-accent"}`}>
+                {c.name}
+              </button>
+            ))}
+            {campaigns.filter((c) => c.status === "active").length === 0 && (
+              <p className="text-sm text-muted-foreground">No active campaigns. Create one first.</p>
+            )}
+          </div>
+          <div className="flex gap-3 justify-end">
+            <Button variant="hero" disabled={!simulateCampaignId} onClick={handleSimulateApplication}>Simulate</Button>
+            <Button variant="outline" onClick={() => setShowSimulate(false)}>Cancel</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Fake creator dialog */}
+      <Dialog open={showFakeCreator} onOpenChange={setShowFakeCreator}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Add Test Creator</DialogTitle>
+            <DialogDescription>Choose which campaign this test creator should join.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {campaigns.filter((c) => c.status === "active").map((c) => (
+              <button key={c.id} onClick={() => setFakeCreatorCampaignId(c.id)} className={`w-full text-left p-3 rounded-xl border text-sm transition-colors ${fakeCreatorCampaignId === c.id ? "border-primary bg-primary/5 text-primary" : "border-border text-foreground hover:bg-accent"}`}>
+                {c.name}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-3 justify-end">
+            <Button variant="hero" disabled={!fakeCreatorCampaignId} onClick={handleCreateFakeCreator}>Create</Button>
+            <Button variant="outline" onClick={() => setShowFakeCreator(false)}>Cancel</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Sidebar */}
       <aside className="w-64 bg-card border-r border-border p-4 flex flex-col shrink-0 sticky top-0 h-screen overflow-y-auto">
         <Link to="/" className="flex items-center gap-2 mb-8" onClick={() => document.documentElement.classList.remove("dark")}>
@@ -612,10 +824,10 @@ const BrandDashboard = () => {
                   {campaigns.map((c) => (
                     <div key={c.id} className="flex items-center justify-between p-4 rounded-xl border border-border hover:bg-accent/50 transition-colors cursor-pointer dark-green-outline" onClick={() => { setSelectedCampaignId(c.id); setTab("campaigns"); }}>
                       <div className="flex items-center gap-4">
-                        {c.images && c.images.length > 0 ? (
-                          <div className="w-12 h-12 rounded-xl overflow-hidden"><img src={c.images[0]} alt="" className="w-full h-full object-cover" /></div>
+                        {brandLogo ? (
+                          <div className="w-12 h-12 rounded-xl overflow-hidden border border-border"><img src={brandLogo} alt="" className="w-full h-full object-cover" /></div>
                         ) : (
-                          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold">{c.name[0]}</div>
+                          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold">{(settingsName || "B")[0]}</div>
                         )}
                         <div>
                           <div className="flex items-center gap-2">
@@ -648,10 +860,10 @@ const BrandDashboard = () => {
                   <div key={c.id} className={`${cardClass} hover:shadow-card-hover transition-shadow relative`}>
                     <div className="flex items-center justify-between cursor-pointer" onClick={() => setSelectedCampaignId(c.id)}>
                       <div className="flex items-center gap-4">
-                        {c.images && c.images.length > 0 ? (
-                          <div className="w-14 h-14 rounded-xl overflow-hidden"><img src={c.images[0]} alt="" className="w-full h-full object-cover" /></div>
+                        {brandLogo ? (
+                          <div className="w-14 h-14 rounded-xl overflow-hidden border border-border"><img src={brandLogo} alt="" className="w-full h-full object-cover" /></div>
                         ) : (
-                          <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-xl">{c.name[0]}</div>
+                          <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-xl">{(settingsName || "B")[0]}</div>
                         )}
                         <div>
                           <div className="flex items-center gap-2">
@@ -663,18 +875,7 @@ const BrandDashboard = () => {
                       </div>
                       <div className="flex items-center gap-3">
                         <Badge variant={c.status === "active" ? "default" : "secondary"}>{c.status}</Badge>
-                        <div className="relative" onClick={(e) => e.stopPropagation()}>
-                          <button onClick={() => setMenuOpenId(menuOpenId === c.id ? null : c.id)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-accent transition-colors">
-                            <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-                          </button>
-                          {menuOpenId === c.id && (
-                            <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="absolute right-0 top-10 bg-card border border-border rounded-xl shadow-lg z-20 w-44 overflow-hidden">
-                              <button onClick={() => handleEditCampaign(c)} className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors">Edit Campaign</button>
-                              <button onClick={() => handleDeactivateCampaign(c.id)} className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors">{c.status === "active" ? "Deactivate" : "Activate"}</button>
-                              <button onClick={() => handleDeleteCampaign(c.id)} className="w-full text-left px-4 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors">Delete Campaign</button>
-                            </motion.div>
-                          )}
-                        </div>
+                        {renderCampaignMenu(c, c.id)}
                       </div>
                     </div>
                   </div>
@@ -690,12 +891,15 @@ const BrandDashboard = () => {
           if (!campaign) return null;
           return (
             <div className="space-y-6">
-              <button onClick={() => setSelectedCampaignId(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back</button>
+              <div className="flex items-center justify-between">
+                <button onClick={() => setSelectedCampaignId(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back</button>
+                {renderCampaignMenu(campaign, campaign.id + 9000)}
+              </div>
               <div className="flex items-center gap-4 mb-4">
-                {campaign.images && campaign.images.length > 0 ? (
-                  <div className="w-16 h-16 rounded-xl overflow-hidden"><img src={campaign.images[0]} alt="" className="w-full h-full object-cover" /></div>
+                {brandLogo ? (
+                  <div className="w-16 h-16 rounded-xl overflow-hidden border border-border"><img src={brandLogo} alt="" className="w-full h-full object-cover" /></div>
                 ) : (
-                  <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-2xl">{campaign.name[0]}</div>
+                  <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-2xl">{(settingsName || "B")[0]}</div>
                 )}
                 <div>
                   <h1 className="font-display text-2xl font-bold text-foreground">{campaign.name}</h1>
@@ -710,6 +914,25 @@ const BrandDashboard = () => {
                 {campaign.link && <p className="text-sm text-primary break-all">{campaign.link}</p>}
                 {campaign.signOnPay > 0 && <p className="text-sm text-foreground">Sign-on Pay: <span className="font-semibold text-primary">${campaign.signOnPay}</span></p>}
                 {campaign.notes && <p className="text-sm text-muted-foreground italic">{campaign.notes}</p>}
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="p-3 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Application</p><p className="font-semibold text-foreground">{campaign.requireApply ? "Creator Approval" : "Instant Join"}</p></div>
+                  {campaign.paidProduct && <div className="p-3 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Product</p><p className="font-semibold text-foreground">{campaign.productType === "physical" ? "Physical" : "Digital"}</p></div>}
+                  {campaign.adPlatforms && campaign.adPlatforms.length > 0 && <div className="p-3 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Platforms</p><p className="font-semibold text-foreground">{campaign.adPlatforms.join(", ")}</p></div>}
+                </div>
+                {/* Creator filters */}
+                {(campaign.filterCategories && campaign.filterCategories.length > 0) || (campaign.followerFilterType && campaign.followerFilterType.length > 0) ? (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold text-foreground">Creator Filters</h3>
+                    {campaign.followerFilterType && campaign.followerFilterType.length > 0 && (
+                      <p className="text-xs text-muted-foreground">Min followers ({campaign.followerFilterType.join(", ")}): {campaign.minFollowers?.toLocaleString()}</p>
+                    )}
+                    {campaign.filterCategories && campaign.filterCategories.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {campaign.filterCategories.map((cat) => <Badge key={cat} variant="secondary" className="text-xs">{cat}</Badge>)}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
                 {campaign.images && campaign.images.length > 0 && (
                   <div className="flex gap-3 flex-wrap">
                     {campaign.images.map((img, i) => (
@@ -759,6 +982,36 @@ const BrandDashboard = () => {
                   </div>
                 )}
               </div>
+
+              {/* Attribution in campaign detail */}
+              <div className={sectionCardClass}>
+                <h2 className="font-display text-lg font-semibold text-foreground mb-4">Attribute Sales</h2>
+                <p className="text-sm text-muted-foreground mb-4">Manually attribute offline sales, clicks, or revenue to a creator in this campaign.</p>
+                <div className="flex gap-3 items-end flex-wrap">
+                  <div className="flex-1 min-w-[150px]">
+                    <label className="text-sm font-medium text-foreground">Creator</label>
+                    <select className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm" value={attributeCreator} onChange={(e) => setAttributeCreator(e.target.value)}>
+                      <option value="">Select creator</option>
+                      {campaign.activeCreators.map((cr, i) => (
+                        <option key={i} value={cr.name}>{cr.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="w-32">
+                    <label className="text-sm font-medium text-foreground">Type</label>
+                    <select className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm" value={attributeType} onChange={(e) => setAttributeType(e.target.value as any)}>
+                      <option value="sales">Sales</option>
+                      <option value="clicks">Clicks</option>
+                      <option value="dollars">Dollar Amount ($)</option>
+                    </select>
+                  </div>
+                  <div className="w-28">
+                    <label className="text-sm font-medium text-foreground">{attributeType === "dollars" ? "Amount ($)" : "Count"}</label>
+                    <Input placeholder={attributeType === "dollars" ? "50" : "5"} type="number" value={attributeValue} onChange={(e) => setAttributeValue(e.target.value)} />
+                  </div>
+                  <Button variant="hero" size="default" onClick={handleAttributeSales}>Attribute</Button>
+                </div>
+              </div>
             </div>
           );
         })()}
@@ -778,6 +1031,8 @@ const BrandDashboard = () => {
                   <select className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm" value={campaignForm.category} onChange={(e) => setCampaignForm({ ...campaignForm, category: e.target.value })}>
                     <option value="">Select category</option>
                     {campaignCategories.map((c) => <option key={c}>{c}</option>)}
+                    {/* Custom categories from signup */}
+                    {savedCategories.filter((c) => !campaignCategories.includes(c) && !campaignCategories.includes(categoryMap[c] || "")).map((c) => <option key={c}>{c}</option>)}
                   </select>
                 </div>
                 <div><label className="text-sm font-medium text-foreground">Description</label><textarea className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm min-h-[80px]" value={campaignForm.description} onChange={(e) => setCampaignForm({ ...campaignForm, description: e.target.value })} placeholder="Brief product description..." /></div>
@@ -911,7 +1166,6 @@ const BrandDashboard = () => {
                 {["TikTok", "Instagram", "YouTube", "Twitter/X", "Facebook"].map((p) => (
                   <button key={p} onClick={() => {
                     const newPlatforms = campaignForm.adPlatforms.includes(p) ? campaignForm.adPlatforms.filter((x) => x !== p) : [...campaignForm.adPlatforms, p];
-                    // Also clear follower filter types that are no longer in ad platforms
                     const newFollowerTypes = campaignForm.followerFilterType.filter((t) => t === "total" || newPlatforms.includes(t));
                     setCampaignForm({ ...campaignForm, adPlatforms: newPlatforms, platforms: newPlatforms, followerFilterType: newFollowerTypes });
                   }} className={`px-4 py-2 rounded-lg border text-sm ${campaignForm.adPlatforms.includes(p) ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}>
@@ -1020,10 +1274,10 @@ const BrandDashboard = () => {
               <p className="text-sm text-muted-foreground text-center">This is how your campaign will look to creators.</p>
               <div className={cardClass + " space-y-4"}>
                 <div className="flex items-center gap-4">
-                  {preview.images && preview.images.length > 0 ? (
-                    <div className="w-14 h-14 rounded-xl overflow-hidden"><img src={preview.images[0]} alt="" className="w-full h-full object-cover" /></div>
+                  {brandLogo ? (
+                    <div className="w-14 h-14 rounded-xl overflow-hidden border border-border"><img src={brandLogo} alt="" className="w-full h-full object-cover" /></div>
                   ) : (
-                    <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-xl">{preview.name[0]}</div>
+                    <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-xl">{(settingsName || "B")[0]}</div>
                   )}
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
@@ -1086,31 +1340,42 @@ const BrandDashboard = () => {
 
         {tab === "applications" && (
           <div className="space-y-6">
-            <h1 className="font-display text-3xl font-bold text-foreground">Applications</h1>
+            <div className="flex items-center justify-between">
+              <h1 className="font-display text-3xl font-bold text-foreground">Applications</h1>
+              <Button variant="outline" onClick={() => setShowSimulate(true)}>Simulate Creator Application</Button>
+            </div>
             {applications.length === 0 ? (
               <p className="text-center text-muted-foreground py-12">No applications yet. Creators will appear here when they apply to your campaigns.</p>
             ) : (
               <div className="space-y-3">
                 {applications.map((app) => (
-                  <div key={app.id} className={cardClass + " flex items-center justify-between"}>
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">{app.creator[0]}</div>
-                      <div>
-                        <p className="font-semibold text-foreground">{app.creator}</p>
-                        <p className="text-sm text-muted-foreground">{app.platform} · {app.followers} followers · {app.category}</p>
-                        <p className="text-xs text-muted-foreground">Campaign: {app.campaignName}</p>
+                  <div key={app.id} className={cardClass + " space-y-3"}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">{app.creator[0]}</div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-foreground">{app.creator}</p>
+                            {app.isSimulated && <Badge variant="secondary" className="text-xs">Simulated</Badge>}
+                          </div>
+                          <p className="text-sm text-muted-foreground">{app.platform} · {app.followers} followers · {app.category}</p>
+                          <p className="text-xs text-muted-foreground">Campaign: {app.campaignName}</p>
+                        </div>
                       </div>
+                      {app.status === "pending" ? (
+                        <div className="flex gap-2">
+                          <Button variant="hero" size="sm" onClick={() => handleAcceptApplication(app.id)}><Check className="w-4 h-4 mr-1" /> Accept</Button>
+                          <Button variant="outline" size="sm" onClick={() => handleDenyApplication(app.id)}><XIcon className="w-4 h-4 mr-1" /> Deny</Button>
+                        </div>
+                      ) : app.status === "accepted" ? (
+                        <Badge className="bg-success/10 text-primary border-0">Accepted</Badge>
+                      ) : (
+                        <Badge variant="secondary">Denied</Badge>
+                      )}
                     </div>
-                    {app.status === "pending" ? (
-                      <div className="flex gap-2">
-                        <Button variant="hero" size="sm" onClick={() => handleAcceptApplication(app.id)}><Check className="w-4 h-4 mr-1" /> Accept</Button>
-                        <Button variant="outline" size="sm" onClick={() => handleDenyApplication(app.id)}><XIcon className="w-4 h-4 mr-1" /> Deny</Button>
-                      </div>
-                    ) : app.status === "accepted" ? (
-                      <Badge className="bg-success/10 text-primary border-0">Accepted</Badge>
-                    ) : (
-                      <Badge variant="secondary">Denied</Badge>
-                    )}
+                    {/* Show address/email if available */}
+                    {app.address && <p className="text-xs text-muted-foreground ml-16"><MapPin className="w-3 h-3 inline mr-1" />Address: {app.address}</p>}
+                    {app.email && <p className="text-xs text-muted-foreground ml-16">Email: {app.email}</p>}
                   </div>
                 ))}
               </div>
@@ -1120,7 +1385,14 @@ const BrandDashboard = () => {
 
         {tab === "creators" && !selectedCreatorDetail && (
           <div className="space-y-6">
-            <h1 className="font-display text-3xl font-bold text-foreground">Creators</h1>
+            <div className="flex items-center justify-between">
+              <h1 className="font-display text-3xl font-bold text-foreground">Creators</h1>
+              {creatorListTab === "my" && (
+                <Button variant="outline" size="sm" onClick={() => setShowFakeCreator(true)}>
+                  <Plus className="w-4 h-4 mr-1" /> Add Test Creator
+                </Button>
+              )}
+            </div>
             <div className="flex gap-2 mb-4">
               <button onClick={() => setCreatorListTab("all")} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${creatorListTab === "all" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>All Creators</button>
               <button onClick={() => setCreatorListTab("my")} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${creatorListTab === "my" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>My Creators</button>
@@ -1151,6 +1423,13 @@ const BrandDashboard = () => {
                   </div>
                 </div>
                 <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Country</p>
+                  <select className="rounded-lg border border-input bg-background px-3 py-2 text-sm w-full" value={creatorFilterCountry} onChange={(e) => setCreatorFilterCountry(e.target.value)}>
+                    <option value="">All Countries</option>
+                    {["United States", "United Kingdom", "Canada"].map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
                   <p className="text-xs font-medium text-muted-foreground mb-2">Minimum Followers</p>
                   <Input
                     value={creatorFilterFollowersInput}
@@ -1164,7 +1443,7 @@ const BrandDashboard = () => {
                     className="w-40"
                   />
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => { setCreatorFilterPlatform([]); setCreatorFilterMinFollowers(0); setCreatorFilterFollowersInput("0"); }}>Clear Filters</Button>
+                <Button variant="ghost" size="sm" onClick={() => { setCreatorFilterPlatform([]); setCreatorFilterMinFollowers(0); setCreatorFilterFollowersInput("0"); setCreatorFilterCountry(""); }}>Clear Filters</Button>
               </motion.div>
             )}
 
@@ -1208,7 +1487,7 @@ const BrandDashboard = () => {
                           {relation === "active" && <Badge className="bg-primary/10 text-primary border-0 text-xs">Works with you</Badge>}
                           {relation === "past" && <Badge variant="secondary" className="text-xs">Worked with you</Badge>}
                         </div>
-                        <p className="text-sm text-muted-foreground">{cr.platform} · {cr.followers} · {cr.category}</p>
+                        <p className="text-sm text-muted-foreground">{cr.platform} · {cr.followers} · {cr.category} · {cr.country}</p>
                       </div>
                     </div>
                     <div onClick={(e) => e.stopPropagation()}>
@@ -1238,7 +1517,6 @@ const BrandDashboard = () => {
           if (!cr) return null;
           const relation = getCreatorRelation(cr.name);
           const isInvited = invitedCreators.some((ic) => ic.name === cr.name);
-          // Find campaigns creator is part of
           const creatorCampaigns = campaigns.filter((c) => c.activeCreators.some((ac) => ac.name === cr.name));
           return (
             <div className="max-w-2xl space-y-6">
@@ -1253,12 +1531,11 @@ const BrandDashboard = () => {
                       {relation === "active" && <Badge className="bg-primary/10 text-primary border-0">Works with you</Badge>}
                       {relation === "past" && <Badge variant="secondary">Worked with you</Badge>}
                     </div>
-                    <p className="text-muted-foreground">{cr.category}</p>
+                    <p className="text-muted-foreground">{cr.category} · {cr.country}</p>
                   </div>
                 </div>
                 <p className="text-sm text-foreground">{cr.bio}</p>
 
-                {/* Analytics */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Total Followers</p><p className="font-semibold text-foreground">{(cr.totalFollowers / 1000).toFixed(0)}K</p></div>
                   <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Revenue Earned</p><p className="font-semibold text-primary">${cr.revenue.toLocaleString()}</p></div>
@@ -1266,7 +1543,6 @@ const BrandDashboard = () => {
                   <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Total Clicks</p><p className="font-semibold text-foreground">{cr.clicks.toLocaleString()}</p></div>
                 </div>
 
-                {/* Platforms */}
                 <div>
                   <h3 className="font-display font-semibold text-foreground mb-2">Platforms</h3>
                   <div className="flex flex-wrap gap-3">
@@ -1279,7 +1555,6 @@ const BrandDashboard = () => {
                   </div>
                 </div>
 
-                {/* Campaigns */}
                 {creatorCampaigns.length > 0 && (
                   <div>
                     <h3 className="font-display font-semibold text-foreground mb-2">Your Campaigns Together</h3>
@@ -1301,8 +1576,11 @@ const BrandDashboard = () => {
                   <div>
                     <h3 className="font-display font-semibold text-foreground mb-2">Portfolio</h3>
                     <div className="space-y-2">
-                      {cr.portfolio.map((link, i) => (
-                        <a key={i} href={link} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline block">{link}</a>
+                      {cr.portfolio.map((item, i) => (
+                        <div key={i} className="p-3 rounded-xl border border-border dark-green-outline">
+                          <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">{item.url}</a>
+                          {item.description && <p className="text-xs text-muted-foreground mt-1">{item.description}</p>}
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -1343,39 +1621,9 @@ const BrandDashboard = () => {
                 </div>
               ))}
             </div>
-
-            <div className={sectionCardClass}>
-              <h2 className="font-display text-xl font-bold text-foreground mb-4">Sales Attribution</h2>
-              <p className="text-sm text-muted-foreground mb-4">Manually attribute offline sales, clicks, or revenue to a creator.</p>
-              <div className="flex gap-3 items-end flex-wrap">
-                <div className="flex-1 min-w-[150px]">
-                  <label className="text-sm font-medium text-foreground">Creator</label>
-                  <select className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm" value={attributeCreator} onChange={(e) => setAttributeCreator(e.target.value)}>
-                    <option value="">Select creator</option>
-                    {campaigns.flatMap((c) => c.activeCreators).map((cr, i) => (
-                      <option key={i} value={cr.name}>{cr.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="w-32">
-                  <label className="text-sm font-medium text-foreground">Type</label>
-                  <select className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm" value={attributeType} onChange={(e) => setAttributeType(e.target.value as any)}>
-                    <option value="sales">Sales</option>
-                    <option value="clicks">Clicks</option>
-                    <option value="dollars">Dollar Amount ($)</option>
-                  </select>
-                </div>
-                <div className="w-28">
-                  <label className="text-sm font-medium text-foreground">{attributeType === "dollars" ? "Amount ($)" : "Count"}</label>
-                  <Input placeholder={attributeType === "dollars" ? "50" : "5"} type="number" value={attributeValue} onChange={(e) => setAttributeValue(e.target.value)} />
-                </div>
-                <Button variant="hero" size="default" onClick={handleAttributeSales}>Attribute</Button>
-              </div>
-            </div>
           </div>
         )}
 
-        {/* Analytics drill-down */}
         {tab === "analytics" && analyticsDetail && (
           <div className="space-y-6">
             <button onClick={() => setAnalyticsDetail(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to analytics</button>
@@ -1410,7 +1658,6 @@ const BrandDashboard = () => {
           </div>
         )}
 
-        {/* Subscription detail */}
         {tab === "analytics" && subscriptionDetail && (
           <div className="space-y-6">
             <button onClick={() => setSubscriptionDetail(false)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to analytics</button>
@@ -1440,10 +1687,10 @@ const BrandDashboard = () => {
               {campaigns.filter((c) => c.status === "active").map((c) => (
                 <div key={c.id} className={cardClass}>
                   <div className="flex items-center gap-4 mb-3">
-                    {c.images && c.images.length > 0 ? (
-                      <div className="w-14 h-14 rounded-xl overflow-hidden"><img src={c.images[0]} alt="" className="w-full h-full object-cover" /></div>
+                    {brandLogo ? (
+                      <div className="w-14 h-14 rounded-xl overflow-hidden border border-border"><img src={brandLogo} alt="" className="w-full h-full object-cover" /></div>
                     ) : (
-                      <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-xl">{c.name[0]}</div>
+                      <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-xl">{(settingsName || "B")[0]}</div>
                     )}
                     <div>
                       <div className="flex items-center gap-2">
@@ -1512,6 +1759,25 @@ const BrandDashboard = () => {
                   {["United States", "United Kingdom", "Canada"].map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
                 <p className="text-xs text-muted-foreground mt-1">More country support coming soon.</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground">Brand Logo</label>
+                <div className="flex items-center gap-4 mt-1">
+                  {settingsLogo ? (
+                    <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-border">
+                      <img src={settingsLogo} alt="Logo" className="w-full h-full object-cover" />
+                      <button onClick={() => setSettingsLogo(null)} className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center">
+                        <XIcon className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="w-16 h-16 rounded-xl border-2 border-dashed border-border hover:border-primary/50 flex flex-col items-center justify-center cursor-pointer transition-colors">
+                      <Upload className="w-5 h-5 text-muted-foreground" />
+                      <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
+                    </label>
+                  )}
+                  <p className="text-xs text-muted-foreground">Upload or change your brand logo</p>
+                </div>
               </div>
             </div>
 
