@@ -5,14 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { motion } from "framer-motion";
-import { Building2, Palette, ArrowRight, ArrowLeft, Check, AlertCircle, CreditCard } from "lucide-react";
+import { Building2, Palette, ArrowRight, ArrowLeft, Check, AlertCircle, CreditCard, Plus, X as XIcon, Upload } from "lucide-react";
 
 const countries = ["United States", "United Kingdom", "Canada"];
 
 const brandCategories = [
   "Fashion & Apparel", "Beauty & Skincare", "Health & Wellness", "Food & Beverage",
   "Tech & Electronics", "Home & Living", "Sports & Fitness", "Travel & Hospitality",
-  "Education", "Finance", "Entertainment", "Automotive", "Pet Products", "Other",
+  "Education", "Finance", "Entertainment", "Automotive", "Pet Products",
 ];
 
 const creatorCategories = [
@@ -47,10 +47,13 @@ const Signup = () => {
   const [step, setStep] = useState(initialRole ? 1 : 0);
   const [role, setRole] = useState<"brand" | "creator" | null>(initialRole);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [formData, setFormData] = useState({ name: "", email: "", password: "", companyName: "", country: "" });
+  const [customCategory, setCustomCategory] = useState("");
+  const [productType, setProductType] = useState<"physical" | "digital" | "">(""); 
+  const [formData, setFormData] = useState({ name: "", email: "", password: "", companyName: "", country: "", address: "" });
   const [socials, setSocials] = useState([{ platform: "", url: "" }]);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
+  const [brandLogo, setBrandLogo] = useState<string | null>(null);
 
   const totalSteps = 4;
   const progress = (step / totalSteps) * 100;
@@ -61,9 +64,22 @@ const Signup = () => {
     );
   };
 
+  const handleAddCustomCategory = () => {
+    const trimmed = customCategory.trim();
+    if (trimmed && !selectedCategories.includes(trimmed)) {
+      setSelectedCategories([...selectedCategories, trimmed]);
+      setCustomCategory("");
+    }
+  };
+
   const addSocial = () => setSocials([...socials, { platform: "", url: "" }]);
 
   const getUsedPlatforms = () => socials.map((s) => s.platform).filter(Boolean);
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) setBrandLogo(URL.createObjectURL(file));
+  };
 
   const validate = (): string[] => {
     const errs: string[] = [];
@@ -76,6 +92,7 @@ const Signup = () => {
     }
     if (step === 2) {
       if (selectedCategories.length === 0) errs.push("Select at least one category");
+      if (role === "brand" && !productType) errs.push("Select whether your product is physical or digital");
     }
     if (step === 3 && role === "creator") {
       if (socials.every((s) => !s.platform || !s.url.trim())) errs.push("Add at least one social account");
@@ -99,8 +116,13 @@ const Signup = () => {
       if (role === "brand") {
         localStorage.setItem("allcall_brand_name", formData.companyName);
         localStorage.setItem("allcall_categories", JSON.stringify(selectedCategories));
+        if (brandLogo) localStorage.setItem("allcall_brand_logo", brandLogo);
+        if (productType) localStorage.setItem("allcall_product_type", productType);
       }
-      if (role === "creator") localStorage.setItem("allcall_creator_name", formData.name);
+      if (role === "creator") {
+        localStorage.setItem("allcall_creator_name", formData.name);
+        if (formData.address.trim()) localStorage.setItem("allcall_creator_address", formData.address);
+      }
       localStorage.setItem("allcall_email", formData.email);
       localStorage.setItem("allcall_country", formData.country);
       navigate(role === "brand" ? "/brand/dashboard" : "/creator/dashboard");
@@ -165,10 +187,31 @@ const Signup = () => {
                 <h2 className="font-display text-2xl font-bold text-foreground">Create your account</h2>
                 <div className="space-y-4">
                   {role === "brand" ? (
-                    <div>
-                      <Label>Company Name</Label>
-                      <Input value={formData.companyName} onChange={(e) => setFormData({ ...formData, companyName: e.target.value })} placeholder="Your brand" />
-                    </div>
+                    <>
+                      <div>
+                        <Label>Company Name</Label>
+                        <Input value={formData.companyName} onChange={(e) => setFormData({ ...formData, companyName: e.target.value })} placeholder="Your brand" />
+                      </div>
+                      <div>
+                        <Label>Brand Logo (optional)</Label>
+                        <div className="flex items-center gap-4 mt-1">
+                          {brandLogo ? (
+                            <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-border">
+                              <img src={brandLogo} alt="Logo" className="w-full h-full object-cover" />
+                              <button onClick={() => setBrandLogo(null)} className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center">
+                                <XIcon className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <label className="w-16 h-16 rounded-xl border-2 border-dashed border-border hover:border-primary/50 flex flex-col items-center justify-center cursor-pointer transition-colors">
+                              <Upload className="w-5 h-5 text-muted-foreground" />
+                              <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
+                            </label>
+                          )}
+                          <p className="text-xs text-muted-foreground">Upload your brand logo</p>
+                        </div>
+                      </div>
+                    </>
                   ) : (
                     <div>
                       <Label>Full Name</Label>
@@ -197,6 +240,13 @@ const Signup = () => {
                     </select>
                     <p className="text-xs text-muted-foreground mt-1">More country support coming soon.</p>
                   </div>
+                  {role === "creator" && (
+                    <div>
+                      <Label>Address (optional)</Label>
+                      <Input value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} placeholder="Your address for product delivery" />
+                      <p className="text-xs text-muted-foreground mt-1">You can add or change this later in settings.</p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -206,6 +256,15 @@ const Signup = () => {
                 <h2 className="font-display text-2xl font-bold text-foreground">
                   {role === "brand" ? "What describes your brand?" : "What content do you create?"}
                 </h2>
+                {role === "brand" && (
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">Is your product physical or digital?</p>
+                    <div className="flex gap-3">
+                      <button onClick={() => setProductType("physical")} className={`px-4 py-2 rounded-lg border text-sm ${productType === "physical" ? "border-primary bg-primary/5 text-primary" : "border-border text-foreground hover:border-primary/50"}`}>Physical Product</button>
+                      <button onClick={() => setProductType("digital")} className={`px-4 py-2 rounded-lg border text-sm ${productType === "digital" ? "border-primary bg-primary/5 text-primary" : "border-border text-foreground hover:border-primary/50"}`}>Digital Product</button>
+                    </div>
+                  </div>
+                )}
                 <p className="text-sm text-muted-foreground">Select one or more categories.</p>
                 <div className="flex flex-wrap gap-2">
                   {(role === "brand" ? brandCategories : creatorCategories).map((cat) => (
@@ -221,6 +280,20 @@ const Signup = () => {
                       {cat}
                     </button>
                   ))}
+                  {/* Custom categories added */}
+                  {selectedCategories.filter((c) => !(role === "brand" ? brandCategories : creatorCategories).includes(c)).map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => toggleCategory(cat)}
+                      className="px-4 py-2 rounded-full text-sm border bg-primary text-primary-foreground border-primary transition-all"
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Input value={customCategory} onChange={(e) => setCustomCategory(e.target.value)} placeholder="Add your own category..." className="flex-1" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddCustomCategory(); } }} />
+                  <Button variant="outline" size="sm" onClick={handleAddCustomCategory}><Plus className="w-4 h-4" /></Button>
                 </div>
               </div>
             )}
