@@ -7,7 +7,7 @@ import {
   BarChart3, Users, DollarSign, Settings, LogOut, Search, Filter,
   Star, TrendingUp, Link2, ExternalLink, ClipboardCopy, FileText, Eye, Check,
   User, KeyRound, Moon, Sun, Crown, Info, Plus, CreditCard, MoreHorizontal,
-  ChevronLeft, Upload, Video, XCircle, AlertCircle, X as XIcon, MapPin
+  ChevronLeft, Upload, Video, XCircle, AlertCircle, X as XIcon, MapPin, Truck, Package
 } from "lucide-react";
 import {
   Tooltip,
@@ -23,7 +23,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
-type Tab = "feed" | "my-campaigns" | "master-link" | "portfolio" | "analytics" | "settings";
+type Tab = "feed" | "my-campaigns" | "master-link" | "portfolio" | "analytics" | "settings" | "shipping";
 
 const CreatorDashboard = () => {
   const navigate = useNavigate();
@@ -54,8 +54,8 @@ const CreatorDashboard = () => {
   const [analyticsDetail, setAnalyticsDetail] = useState<string | null>(null);
   const [selectedMyCampaign, setSelectedMyCampaign] = useState<number | null>(null);
   const [analyticsLines, setAnalyticsLines] = useState<string[]>(["earnings"]);
+  const [simulatedAnalytics, setSimulatedAnalytics] = useState(false);
 
-  // Product application flow
   const [showProductApply, setShowProductApply] = useState(false);
   const [productApplyAddress, setProductApplyAddress] = useState("");
   const [productApplyEmail, setProductApplyEmail] = useState("");
@@ -67,30 +67,45 @@ const CreatorDashboard = () => {
   const [settingsAddress, setSettingsAddress] = useState(() => localStorage.getItem("allcall_creator_address") || "");
   const [settingsPassword, setSettingsPassword] = useState({ current: "", new: "", confirm: "" });
 
-  const availableCampaigns = [
-    { id: 1, brand: "GlowBeauty", product: "Summer Glow Serum", category: "Beauty", platform: "TikTok", payMethod: "Hybrid: 5% + $5/100 clicks", signOnPay: 25, isPro: true, topPick: true, needsProduct: true, requireApply: true, image: "", description: "Promote our bestselling serum with honest skincare reviews.", notes: "Use #GlowBeauty and #SummerGlow", productType: "physical" as const },
-    { id: 2, brand: "FitPro", product: "ProFit Blender", category: "Health", platform: "Instagram", payMethod: "Commission: 8%", signOnPay: 0, isPro: false, topPick: true, needsProduct: false, requireApply: false, image: "", description: "Share your favorite smoothie recipes using our blender.", notes: "", productType: "physical" as const },
-    { id: 3, brand: "TechBite", product: "CodeMaster Keyboard", category: "Tech", platform: "YouTube", payMethod: "Flat: $10/100 clicks", signOnPay: 50, isPro: true, topPick: false, needsProduct: true, requireApply: true, image: "", description: "Review our mechanical keyboard for developers and gamers.", notes: "Focus on typing feel and build quality", productType: "physical" as const },
-    { id: 4, brand: "HomeNest", product: "Smart Diffuser", category: "Home", platform: "TikTok", payMethod: "Commission: 6%", signOnPay: 0, isPro: false, topPick: false, needsProduct: false, requireApply: false, image: "", description: "Feature our smart aroma diffuser in your home setup content.", notes: "", productType: "digital" as const },
-    { id: 5, brand: "EcoLife", product: "Bamboo Water Bottle", category: "Health", platform: "Instagram", payMethod: "Hybrid: 4% + $5/100 clicks", signOnPay: 15, isPro: true, topPick: true, needsProduct: true, requireApply: true, image: "", description: "Eco-friendly hydration for conscious consumers.", notes: "Highlight sustainability", productType: "physical" as const },
-    { id: 6, brand: "ChargePro", product: "Wireless Charger Pad", category: "Tech", platform: "YouTube", payMethod: "Flat: $12/100 clicks", signOnPay: 0, isPro: false, topPick: false, needsProduct: false, requireApply: true, image: "", description: "Showcase fast wireless charging technology.", notes: "", productType: "digital" as const },
-    { id: 7, brand: "StyleVault", product: "Oversized Vintage Tee", category: "Fashion", platform: "TikTok", payMethod: "Commission: 12%", signOnPay: 20, isPro: true, topPick: true, needsProduct: true, requireApply: true, image: "", description: "Style our vintage tees in your outfit-of-the-day content.", notes: "Tag @StyleVault", productType: "physical" as const },
-    { id: 8, brand: "PetPals", product: "Organic Dog Treats", category: "Home", platform: "Instagram", payMethod: "Hybrid: 7% + $3/100 clicks", signOnPay: 0, isPro: false, topPick: false, needsProduct: true, requireApply: false, image: "", description: "Share your pet's reaction to our organic treats.", notes: "", productType: "physical" as const },
-    { id: 9, brand: "BrewCraft", product: "Cold Brew Maker Kit", category: "Food", platform: "YouTube", payMethod: "Commission: 9%", signOnPay: 30, isPro: true, topPick: false, needsProduct: true, requireApply: true, image: "", description: "Make cold brew at home with our kit.", notes: "Show the brewing process", productType: "physical" as const },
-    { id: 10, brand: "ZenSkin", product: "Retinol Night Cream", category: "Beauty", platform: "TikTok", payMethod: "Flat: $8/100 clicks", signOnPay: 0, isPro: false, topPick: true, needsProduct: false, requireApply: false, image: "", description: "Night skincare routine featuring our retinol cream.", notes: "", productType: "digital" as const },
+  // Simulated analytics data
+  const [simEarnings, setSimEarnings] = useState(0);
+  const [simClicks, setSimClicks] = useState(0);
+  const [simSales, setSimSales] = useState(0);
+  const [simRevenue, setSimRevenue] = useState(0);
+  const [simGraphData, setSimGraphData] = useState<{ month: string; earnings: number; clicks: number; sales: number }[]>([]);
+
+  // Shipping
+  const incomingShipments = [
+    ...(simulatedAnalytics ? [
+      { id: 1, brand: "GlowBeauty", product: "Summer Glow Serum", campaign: "Summer Glow Serum", units: 2, address: settingsAddress || "123 Main St, New York, NY", dateShipped: "3/28/2026", expectedDelivery: "4/5/2026", trackingLink: "https://tracking.example.com/abc123" },
+      { id: 2, brand: "TechBite", product: "CodeMaster Keyboard", campaign: "CodeMaster Keyboard", units: 1, address: settingsAddress || "123 Main St, New York, NY", dateShipped: "3/30/2026", expectedDelivery: "4/8/2026", trackingLink: "" },
+    ] : []),
   ];
 
-  const brandAnalytics: Record<string, { totalPaid: number; campaigns: number; creators: number }> = {
-    "GlowBeauty": { totalPaid: 12500, campaigns: 4, creators: 28 },
-    "FitPro": { totalPaid: 8200, campaigns: 2, creators: 15 },
-    "TechBite": { totalPaid: 18000, campaigns: 5, creators: 42 },
+  const availableCampaigns = [
+    { id: 1, brand: "GlowBeauty", product: "Summer Glow Serum", category: "Beauty", platform: "TikTok", payMethod: "Hybrid: 5% + $5/100 clicks", signOnPay: 25, isPro: true, topPick: true, needsProduct: true, requireApply: true, image: "", description: "Promote our bestselling serum with honest skincare reviews.", notes: "Use #GlowBeauty and #SummerGlow", productType: "physical" as const, websiteUrl: "https://glowbeauty.com", productLink: "https://glowbeauty.com/serum" },
+    { id: 2, brand: "FitPro", product: "ProFit Blender", category: "Health", platform: "Instagram", payMethod: "Commission: 8%", signOnPay: 0, isPro: false, topPick: true, needsProduct: false, requireApply: false, image: "", description: "Share your favorite smoothie recipes using our blender.", notes: "", productType: "physical" as const, websiteUrl: "https://fitpro.com", productLink: "https://fitpro.com/blender" },
+    { id: 3, brand: "TechBite", product: "CodeMaster Keyboard", category: "Tech", platform: "YouTube", payMethod: "Flat: $10/100 clicks", signOnPay: 50, isPro: true, topPick: false, needsProduct: true, requireApply: true, image: "", description: "Review our mechanical keyboard for developers and gamers.", notes: "Focus on typing feel and build quality", productType: "physical" as const, websiteUrl: "https://techbite.io", productLink: "https://techbite.io/keyboard" },
+    { id: 4, brand: "HomeNest", product: "Smart Diffuser", category: "Home", platform: "TikTok", payMethod: "Commission: 6%", signOnPay: 0, isPro: false, topPick: false, needsProduct: false, requireApply: false, image: "", description: "Feature our smart aroma diffuser in your home setup content.", notes: "", productType: "digital" as const, websiteUrl: "", productLink: "" },
+    { id: 5, brand: "EcoLife", product: "Bamboo Water Bottle", category: "Health", platform: "Instagram", payMethod: "Hybrid: 4% + $5/100 clicks", signOnPay: 15, isPro: true, topPick: true, needsProduct: true, requireApply: true, image: "", description: "Eco-friendly hydration for conscious consumers.", notes: "Highlight sustainability", productType: "physical" as const, websiteUrl: "https://ecolife.com", productLink: "https://ecolife.com/bottle" },
+    { id: 6, brand: "ChargePro", product: "Wireless Charger Pad", category: "Tech", platform: "YouTube", payMethod: "Flat: $12/100 clicks", signOnPay: 0, isPro: false, topPick: false, needsProduct: false, requireApply: true, image: "", description: "Showcase fast wireless charging technology.", notes: "", productType: "digital" as const, websiteUrl: "", productLink: "" },
+    { id: 7, brand: "StyleVault", product: "Oversized Vintage Tee", category: "Fashion", platform: "TikTok", payMethod: "Commission: 12%", signOnPay: 20, isPro: true, topPick: true, needsProduct: true, requireApply: true, image: "", description: "Style our vintage tees in your outfit-of-the-day content.", notes: "Tag @StyleVault", productType: "physical" as const, websiteUrl: "https://stylevault.co", productLink: "https://stylevault.co/tee" },
+    { id: 8, brand: "PetPals", product: "Organic Dog Treats", category: "Home", platform: "Instagram", payMethod: "Hybrid: 7% + $3/100 clicks", signOnPay: 0, isPro: false, topPick: false, needsProduct: true, requireApply: false, image: "", description: "Share your pet's reaction to our organic treats.", notes: "", productType: "physical" as const, websiteUrl: "", productLink: "" },
+    { id: 9, brand: "BrewCraft", product: "Cold Brew Maker Kit", category: "Food", platform: "YouTube", payMethod: "Commission: 9%", signOnPay: 30, isPro: true, topPick: false, needsProduct: true, requireApply: true, image: "", description: "Make cold brew at home with our kit.", notes: "Show the brewing process", productType: "physical" as const, websiteUrl: "https://brewcraft.com", productLink: "https://brewcraft.com/kit" },
+    { id: 10, brand: "ZenSkin", product: "Retinol Night Cream", category: "Beauty", platform: "TikTok", payMethod: "Flat: $8/100 clicks", signOnPay: 0, isPro: false, topPick: true, needsProduct: false, requireApply: false, image: "", description: "Night skincare routine featuring our retinol cream.", notes: "", productType: "digital" as const, websiteUrl: "https://zenskin.com", productLink: "https://zenskin.com/retinol" },
+  ];
+
+  const brandAnalytics: Record<string, { totalPaid: number; campaigns: number; creators: number; websiteUrl?: string }> = {
+    "GlowBeauty": { totalPaid: 12500, campaigns: 4, creators: 28, websiteUrl: "https://glowbeauty.com" },
+    "FitPro": { totalPaid: 8200, campaigns: 2, creators: 15, websiteUrl: "https://fitpro.com" },
+    "TechBite": { totalPaid: 18000, campaigns: 5, creators: 42, websiteUrl: "https://techbite.io" },
     "HomeNest": { totalPaid: 3400, campaigns: 1, creators: 8 },
-    "EcoLife": { totalPaid: 6700, campaigns: 3, creators: 19 },
+    "EcoLife": { totalPaid: 6700, campaigns: 3, creators: 19, websiteUrl: "https://ecolife.com" },
     "ChargePro": { totalPaid: 4100, campaigns: 2, creators: 12 },
-    "StyleVault": { totalPaid: 9800, campaigns: 3, creators: 31 },
+    "StyleVault": { totalPaid: 9800, campaigns: 3, creators: 31, websiteUrl: "https://stylevault.co" },
     "PetPals": { totalPaid: 2200, campaigns: 1, creators: 6 },
-    "BrewCraft": { totalPaid: 5600, campaigns: 2, creators: 14 },
-    "ZenSkin": { totalPaid: 7300, campaigns: 3, creators: 22 },
+    "BrewCraft": { totalPaid: 5600, campaigns: 2, creators: 14, websiteUrl: "https://brewcraft.com" },
+    "ZenSkin": { totalPaid: 7300, campaigns: 3, creators: 22, websiteUrl: "https://zenskin.com" },
   };
 
   const sidebarItems: { key: Tab; label: string; icon: any }[] = [
@@ -98,6 +113,7 @@ const CreatorDashboard = () => {
     { key: "my-campaigns", label: "My Campaigns", icon: Link2 },
     { key: "master-link", label: "Master Link", icon: ExternalLink },
     { key: "portfolio", label: "Portfolio", icon: Video },
+    { key: "shipping", label: "Shipping", icon: Truck },
     { key: "analytics", label: "Analytics", icon: TrendingUp },
     { key: "settings", label: "Settings", icon: Settings },
   ];
@@ -144,14 +160,12 @@ const CreatorDashboard = () => {
     const campaign = availableCampaigns.find((c) => c.id === campaignId);
     if (!campaign) return;
     setProductApplyCampaignId(campaignId);
-    // Autofill
     if (campaign.productType === "physical" && settingsAddress) setProductApplyAddress(settingsAddress);
     if (campaign.productType === "digital" && settingsEmail) setProductApplyEmail(settingsEmail);
     setShowProductApply(true);
   };
 
   const submitProductApplication = () => {
-    // Just close the dialog - the application is "submitted"
     setShowProductApply(false);
     setProductApplyAddress("");
     setProductApplyEmail("");
@@ -223,6 +237,37 @@ const CreatorDashboard = () => {
     navigate("/");
   };
 
+  const handleSimulateAnalytics = () => {
+    const earnings = Math.floor(Math.random() * 5000 + 500);
+    const clicks = Math.floor(Math.random() * 10000 + 1000);
+    const sales = Math.floor(Math.random() * 200 + 20);
+    const revenue = Math.floor(Math.random() * 20000 + 2000);
+    setSimEarnings(earnings);
+    setSimClicks(clicks);
+    setSimSales(sales);
+    setSimRevenue(revenue);
+    setSimulatedAnalytics(true);
+
+    // Generate graph data
+    const months = ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"];
+    const graphData = months.map((month) => ({
+      month,
+      earnings: Math.floor(Math.random() * (earnings / 3)),
+      clicks: Math.floor(Math.random() * (clicks / 3)),
+      sales: Math.floor(Math.random() * (sales / 3)),
+    }));
+    setSimGraphData(graphData);
+
+    // Also give joined campaigns some random values
+    setJoinedCampaigns((prev) => prev.map((c) => ({
+      ...c,
+      earnings: Math.floor(Math.random() * 800 + 50),
+      clicks: Math.floor(Math.random() * 2000 + 100),
+      sales: Math.floor(Math.random() * 50 + 5),
+      revenue: Math.floor(Math.random() * 3000 + 200),
+    })));
+  };
+
   useEffect(() => {
     if (darkMode) document.documentElement.classList.add("dark");
     else document.documentElement.classList.remove("dark");
@@ -232,17 +277,27 @@ const CreatorDashboard = () => {
   const cardClass = "p-5 rounded-2xl bg-card border border-border shadow-card dark-green-outline";
   const sectionCardClass = "bg-card border border-border rounded-2xl p-6 shadow-card dark-green-outline";
 
-  const totalEarnings = joinedCampaigns.reduce((s, c) => s + c.earnings, 0);
-  const totalClicks = joinedCampaigns.reduce((s, c) => s + c.clicks, 0);
-  const totalSales = joinedCampaigns.reduce((s, c) => s + c.sales, 0);
-  const totalRevenue = joinedCampaigns.reduce((s, c) => s + c.revenue, 0);
+  const totalEarnings = simulatedAnalytics ? simEarnings : joinedCampaigns.reduce((s, c) => s + c.earnings, 0);
+  const totalClicks = simulatedAnalytics ? simClicks : joinedCampaigns.reduce((s, c) => s + c.clicks, 0);
+  const totalSales = simulatedAnalytics ? simSales : joinedCampaigns.reduce((s, c) => s + c.sales, 0);
+  const totalRevenue = simulatedAnalytics ? simRevenue : joinedCampaigns.reduce((s, c) => s + c.revenue, 0);
 
   const toggleAnalyticsLine = (line: string) => {
     setAnalyticsLines((prev) => prev.includes(line) ? prev.filter((l) => l !== line) : [...prev, line]);
   };
 
+  const dashboardFooter = (
+    <footer className="mt-12 pt-6 border-t border-border">
+      <div className="flex flex-wrap gap-6 justify-center text-sm text-muted-foreground">
+        <a href="https://allcall.carrd.co/" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors flex items-center gap-1"><ExternalLink className="w-3 h-3" /> AllCall Landing Page</a>
+        <a href="https://docs.google.com/forms/d/e/1FAIpQLSf4mmoWe2y9mcKaj-0i6C1tRDZZGBq_87YjUeOu5HHyjonxhw/viewform?usp=header" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors flex items-center gap-1"><ExternalLink className="w-3 h-3" /> Feedback Survey</a>
+        <a href="https://docs.google.com/forms/d/e/1FAIpQLSeBZn0VKe1V23746Lby7U5zyqc1a9R7EZ7uyWLru-Z9jenFPQ/viewform?usp=header" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors flex items-center gap-1"><ExternalLink className="w-3 h-3" /> Join Waitlist / Early Access</a>
+      </div>
+    </footer>
+  );
+
   return (
-    <div className="min-h-screen flex bg-background" style={{ background: darkMode ? undefined : 'linear-gradient(180deg, hsl(145, 30%, 95%) 0%, hsl(150, 20%, 98%) 50%, hsl(0, 0%, 100%) 100%)' }}>
+    <div className="min-h-screen flex" style={{ background: darkMode ? 'hsl(150, 10%, 5%)' : 'linear-gradient(180deg, hsl(148, 50%, 88%) 0%, hsl(145, 35%, 92%) 40%, hsl(140, 20%, 96%) 100%)', backgroundAttachment: 'fixed' }}>
       {/* Withdraw confirmation */}
       {showWithdrawConfirm && (
         <div className="fixed inset-0 z-50 bg-foreground/50 flex items-center justify-center" onClick={() => setShowWithdrawConfirm(null)}>
@@ -388,6 +443,9 @@ const CreatorDashboard = () => {
                     <p className="text-sm text-muted-foreground">{brandCampaigns.length} campaigns · {ba.creators} creators</p>
                   </div>
                 </div>
+                {(ba as any).websiteUrl && (
+                  <a href={(ba as any).websiteUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1"><ExternalLink className="w-3 h-3" /> {(ba as any).websiteUrl}</a>
+                )}
                 <div className="grid grid-cols-3 gap-4">
                   <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Total Paid to Creators</p><p className="font-display text-xl font-bold text-primary">${ba.totalPaid.toLocaleString()}</p></div>
                   <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Active Campaigns</p><p className="font-display text-xl font-bold text-foreground">{ba.campaigns}</p></div>
@@ -495,7 +553,6 @@ const CreatorDashboard = () => {
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="font-display font-bold text-foreground">{c.product}</h3>
-                            {c.topPick && <Badge className="bg-warning/10 text-warning border-0 text-xs"><Star className="w-3 h-3 mr-1" /> Top Pick</Badge>}
                             {c.isPro && (
                               <Tooltip>
                                 <TooltipTrigger><Crown className="w-5 h-5 text-warning" /></TooltipTrigger>
@@ -558,6 +615,8 @@ const CreatorDashboard = () => {
 
                 {c.description && <p className="text-sm text-foreground">{c.description}</p>}
                 {c.notes && <p className="text-sm text-muted-foreground italic">📌 {c.notes}</p>}
+                {c.productLink && <a href={c.productLink} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1"><ExternalLink className="w-3 h-3" /> Product Link</a>}
+                {c.websiteUrl && <a href={c.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1"><ExternalLink className="w-3 h-3" /> Brand Website</a>}
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Platform</p><p className="font-semibold text-foreground">{c.platform}</p></div>
@@ -696,6 +755,8 @@ const CreatorDashboard = () => {
                 </div>
                 {campaign.description && <p className="text-sm text-foreground">{campaign.description}</p>}
                 {campaign.notes && <p className="text-sm text-muted-foreground italic">📌 {campaign.notes}</p>}
+                {campaign.productLink && <a href={campaign.productLink} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1"><ExternalLink className="w-3 h-3" /> Product Link</a>}
+                {campaign.websiteUrl && <a href={campaign.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1"><ExternalLink className="w-3 h-3" /> Brand Website</a>}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Platform</p><p className="font-semibold text-foreground">{campaign.platform}</p></div>
                   <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Payment</p><p className="font-semibold text-foreground">{campaign.payMethod}</p></div>
@@ -763,40 +824,47 @@ const CreatorDashboard = () => {
                 <div className={sectionCardClass + " space-y-2"}>
                   <p className="text-sm font-medium text-foreground">Select campaigns to add:</p>
                   {joinedCampaigns.filter((c) => !masterLinkIds.includes(c.id)).length === 0 ? (
-                    <p className="text-sm text-muted-foreground">All your active campaigns are already on your master link.</p>
+                    <p className="text-sm text-muted-foreground">All campaigns are already on your master link, or you haven't joined any yet.</p>
                   ) : (
                     joinedCampaigns.filter((c) => !masterLinkIds.includes(c.id)).map((c) => (
-                      <div key={c.id} className="flex items-center justify-between p-3 rounded-lg border border-border dark-green-outline">
-                        <div>
-                          <p className="font-semibold text-foreground text-sm">{c.product}</p>
-                          <p className="text-xs text-muted-foreground">{c.brand}</p>
-                        </div>
-                        <Button variant="hero" size="sm" onClick={() => { setMasterLinkIds([...masterLinkIds, c.id]); }}>Add</Button>
-                      </div>
+                      <button key={c.id} onClick={() => { setMasterLinkIds([...masterLinkIds, c.id]); setShowAddToMasterLink(false); }} className="w-full text-left p-3 rounded-xl border border-border hover:bg-accent text-sm transition-colors">
+                        {c.product} ({c.brand})
+                      </button>
                     ))
                   )}
                 </div>
               )}
 
               {joinedCampaigns.filter((c) => masterLinkIds.includes(c.id)).map((c) => (
-                <div key={c.id} className="p-4 rounded-xl bg-card border border-border flex items-center justify-between dark-green-outline">
-                  <div>
-                    <p className="font-semibold text-foreground">{c.product}</p>
-                    <p className="text-xs text-muted-foreground">{c.brand}</p>
+                <div key={c.id} className={cardClass + " space-y-2"}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-foreground">{c.product}</h3>
+                      <p className="text-xs text-muted-foreground">{c.brand}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <button onClick={() => setMenuOpenId(menuOpenId === c.id + 2000 ? null : c.id + 2000)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-accent transition-colors">
+                          <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+                        </button>
+                        {menuOpenId === c.id + 2000 && (
+                          <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="absolute right-0 top-10 bg-card border border-border rounded-xl shadow-lg z-20 w-48 overflow-hidden">
+                            <button onClick={() => handleWithdraw(c.id)} className="w-full text-left px-4 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors">Withdraw from Campaign</button>
+                            <button onClick={() => handleRemoveFromMasterLink(c.id)} className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors">Remove from Master Link</button>
+                          </motion.div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge className="bg-success/10 text-primary border-0 text-xs">Added</Badge>
-                    <div className="relative">
-                      <button onClick={() => setMenuOpenId(menuOpenId === c.id + 2000 ? null : c.id + 2000)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-accent transition-colors">
-                        <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-                      </button>
-                      {menuOpenId === c.id + 2000 && (
-                        <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="absolute right-0 top-10 bg-card border border-border rounded-xl shadow-lg z-20 w-48 overflow-hidden">
-                          <button onClick={() => handleWithdraw(c.id)} className="w-full text-left px-4 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors">Withdraw from Campaign</button>
-                          <button onClick={() => handleRemoveFromMasterLink(c.id)} className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors">Remove from Master Link</button>
-                        </motion.div>
-                      )}
-                    </div>
+                    <p className="text-sm text-foreground truncate flex-1 font-mono">{c.link}</p>
+                    <button className="text-primary hover:text-primary/80" onClick={() => handleCopyLink(c.link)}>
+                      {copiedLink === c.link ? <Check className="w-4 h-4" /> : <ClipboardCopy className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Code:</span>
+                    <span className="font-mono font-bold text-primary text-sm">{c.code}</span>
                   </div>
                 </div>
               ))}
@@ -849,16 +917,59 @@ const CreatorDashboard = () => {
           </div>
         )}
 
+        {/* Shipping page */}
+        {tab === "shipping" && (
+          <div className="space-y-6">
+            <h1 className="font-display text-3xl font-bold text-foreground">Shipping & Deliveries</h1>
+            <p className="text-sm text-muted-foreground">Track products being shipped or emailed to you by brands.</p>
+
+            {incomingShipments.length === 0 ? (
+              <div className={sectionCardClass + " text-center py-12"}>
+                <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">No shipments yet. Products will appear here when brands mark them as shipped to you.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {incomingShipments.map((sp) => (
+                  <div key={sp.id} className={cardClass + " space-y-3"}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold text-foreground">{sp.product}</h3>
+                        <p className="text-sm text-muted-foreground">From: {sp.brand} · Campaign: {sp.campaign}</p>
+                      </div>
+                      <Badge variant="secondary"><Truck className="w-3 h-3 mr-1" /> Shipped</Badge>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                      <div className="p-3 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Units</p><p className="font-medium text-foreground">{sp.units}</p></div>
+                      <div className="p-3 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Your Address</p><p className="font-medium text-foreground text-xs">{sp.address}</p></div>
+                      <div className="p-3 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Date Shipped</p><p className="font-medium text-foreground">{sp.dateShipped}</p></div>
+                      <div className="p-3 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Expected Delivery</p><p className="font-medium text-foreground">{sp.expectedDelivery || "Not set"}</p></div>
+                    </div>
+                    {sp.trackingLink && (
+                      <a href={sp.trackingLink} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1"><ExternalLink className="w-3 h-3" /> Track Package</a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {tab === "analytics" && !analyticsDetail && (
           <div className="space-y-6">
-            <h1 className="font-display text-3xl font-bold text-foreground">Analytics</h1>
+            <div className="flex items-center justify-between">
+              <h1 className="font-display text-3xl font-bold text-foreground">Analytics</h1>
+              <Button variant="outline" onClick={handleSimulateAnalytics}>
+                <BarChart3 className="w-4 h-4 mr-2" /> Simulate Analytics
+              </Button>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
-                { label: "Total Earnings", value: `$${totalEarnings}`, key: "earnings" },
+                { label: "Total Earnings", value: `$${totalEarnings.toLocaleString()}`, key: "earnings" },
                 { label: "Active Campaigns", value: String(joinedCampaigns.length), key: "campaigns" },
-                { label: "Total Clicks", value: String(totalClicks), key: "clicks" },
+                { label: "Total Clicks", value: totalClicks.toLocaleString(), key: "clicks" },
                 { label: "Total Sales", value: String(totalSales), key: "sales" },
-                { label: "Revenue for Brands", value: `$${totalRevenue}`, key: "revenue" },
+                { label: "Revenue for Brands", value: `$${totalRevenue.toLocaleString()}`, key: "revenue" },
               ].map((s) => (
                 <div key={s.label} className={cardClass + " cursor-pointer hover:shadow-card-hover transition-shadow"} onClick={() => setAnalyticsDetail(s.key)}>
                   <p className="text-sm text-muted-foreground">{s.label}</p>
@@ -869,7 +980,7 @@ const CreatorDashboard = () => {
               ))}
             </div>
 
-            {/* Line graph placeholder */}
+            {/* Line graph */}
             <div className={sectionCardClass + " space-y-4"}>
               <h2 className="font-display text-lg font-semibold text-foreground">Performance Over Time</h2>
               <div className="flex flex-wrap gap-2 mb-4">
@@ -885,13 +996,31 @@ const CreatorDashboard = () => {
                   </button>
                 ))}
               </div>
-              <div className="h-48 rounded-xl bg-muted/30 flex items-center justify-center border border-border dark-green-outline">
-                <div className="text-center">
-                  <TrendingUp className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">Performance graph will populate as you earn</p>
-                  <p className="text-xs text-muted-foreground">Showing: {analyticsLines.join(", ")}</p>
+              {simulatedAnalytics && simGraphData.length > 0 ? (
+                <div className="h-48 rounded-xl bg-muted/30 border border-border dark-green-outline p-4 flex items-end gap-1">
+                  {simGraphData.map((d, i) => {
+                    const maxVal = Math.max(...simGraphData.map((x) => Math.max(x.earnings, x.clicks, x.sales)));
+                    return (
+                      <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                        <div className="flex gap-0.5 items-end h-32 w-full">
+                          {analyticsLines.includes("earnings") && <div className="flex-1 bg-primary/70 rounded-t" style={{ height: `${(d.earnings / maxVal) * 100}%`, minHeight: 4 }} />}
+                          {analyticsLines.includes("clicks") && <div className="flex-1 bg-blue-500/70 rounded-t" style={{ height: `${(d.clicks / maxVal) * 100}%`, minHeight: 4 }} />}
+                          {analyticsLines.includes("sales") && <div className="flex-1 bg-orange-500/70 rounded-t" style={{ height: `${(d.sales / maxVal) * 100}%`, minHeight: 4 }} />}
+                        </div>
+                        <span className="text-xs text-muted-foreground">{d.month}</span>
+                      </div>
+                    );
+                  })}
                 </div>
-              </div>
+              ) : (
+                <div className="h-48 rounded-xl bg-muted/30 flex items-center justify-center border border-border dark-green-outline">
+                  <div className="text-center">
+                    <TrendingUp className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">Click "Simulate Analytics" to see sample data</p>
+                    <p className="text-xs text-muted-foreground">Showing: {analyticsLines.join(", ")}</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -995,6 +1124,8 @@ const CreatorDashboard = () => {
             <Button variant="hero" onClick={handleSaveSettings}>Save All Changes</Button>
           </div>
         )}
+
+        {dashboardFooter}
       </main>
     </div>
   );
