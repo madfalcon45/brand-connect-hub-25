@@ -1368,10 +1368,15 @@ const BrandDashboard = () => {
                     <p className="text-sm font-medium text-foreground mb-2">Creator categories</p>
                     <div className="flex flex-wrap gap-2">
                       {campaignCategories.map((cat) => (
-                        <button key={cat} onClick={() => setCampaignForm({
-                          ...campaignForm,
-                          filterCategories: campaignForm.filterCategories.includes(cat) ? campaignForm.filterCategories.filter((c) => c !== cat) : [...campaignForm.filterCategories, cat],
-                        })} className={`px-3 py-1.5 rounded-full text-xs border ${campaignForm.filterCategories.includes(cat) ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}>
+                        <button key={cat} onClick={() => {
+                          if (cat === "All") {
+                            setCampaignForm({ ...campaignForm, filterCategories: ["All"] });
+                          } else {
+                            const withoutAll = campaignForm.filterCategories.filter((c) => c !== "All");
+                            const newCats = withoutAll.includes(cat) ? withoutAll.filter((c) => c !== cat) : [...withoutAll, cat];
+                            setCampaignForm({ ...campaignForm, filterCategories: newCats });
+                          }
+                        }} className={`px-3 py-1.5 rounded-full text-xs border ${campaignForm.filterCategories.includes(cat) ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}>
                           {cat}
                         </button>
                       ))}
