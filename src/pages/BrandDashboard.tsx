@@ -678,7 +678,7 @@ const BrandDashboard = () => {
           <h3 className="font-display font-bold text-lg text-foreground">{c.name}</h3>
           {c.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0">${c.signOnPay} sign-on pay</Badge>}
         </div>
-        <p className="text-sm text-muted-foreground">{c.category} · {c.activeCreators.length} active creators · {c.payMethod}</p>
+        <p className="text-sm text-muted-foreground">{c.category} · {c.activeCreators.length} active creators · {c.adPlatforms && c.adPlatforms.length > 1 ? "Multiple Platforms" : c.adPlatforms?.[0] || c.platforms?.[0] || "All"} · {c.payMethod}</p>
       </div>
     </div>
   );
