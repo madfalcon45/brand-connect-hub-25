@@ -853,13 +853,13 @@ const BrandDashboard = () => {
             <DialogDescription>Choose which campaign to simulate an application for.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            {campaigns.filter((c) => c.status === "active").map((c) => (
+            {campaigns.filter((c) => c.status === "active" && c.requireApply).map((c) => (
               <button key={c.id} onClick={() => setSimulateCampaignId(c.id)} className={`w-full text-left p-3 rounded-xl border text-sm transition-colors ${simulateCampaignId === c.id ? "border-primary bg-primary/5 text-primary" : "border-border text-foreground hover:bg-accent"}`}>
                 {c.name}
               </button>
             ))}
-            {campaigns.filter((c) => c.status === "active").length === 0 && (
-              <p className="text-sm text-muted-foreground">No active campaigns. Create one first.</p>
+            {campaigns.filter((c) => c.status === "active" && c.requireApply).length === 0 && (
+              <p className="text-sm text-muted-foreground">No active apply-only campaigns. Create one with Creator Approval first.</p>
             )}
           </div>
           <div className="flex gap-3 justify-end">
