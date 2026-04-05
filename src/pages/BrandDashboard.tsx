@@ -1567,16 +1567,23 @@ const BrandDashboard = () => {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h1 className="font-display text-3xl font-bold text-foreground">Creators</h1>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setShowFakeCreator(true)}>
-                  <Plus className="w-4 h-4 mr-1" /> Add Test Creator
-                </Button>
-              </div>
             </div>
 
             <div className="flex gap-2 mb-4">
               <button onClick={() => setCreatorListTab("all")} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "all" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>All Creators</button>
               <button onClick={() => setCreatorListTab("my")} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "my" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>My Creators</button>
+            </div>
+
+            {creatorListTab === "my" && (
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setShowFakeCreator(true)}>
+                  <Plus className="w-4 h-4 mr-1" /> Add Test Creator
+                </Button>
+                {applications.some((a) => a.isSimulated && a.status === "accepted") && (
+                  <Button variant="outline" size="sm" className="text-destructive border-destructive/30" onClick={handleClearSimulatedCreators}>Clear Simulated</Button>
+                )}
+              </div>
+            )}
             </div>
 
             <p className="text-sm text-muted-foreground">
