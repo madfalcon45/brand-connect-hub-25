@@ -477,18 +477,22 @@ const BrandDashboard = () => {
     if (!simulateCampaignId) return;
     const campaign = campaigns.find((c) => c.id === simulateCampaignId);
     if (!campaign) return;
-    const fakeNames = ["Alex Johnson", "Sam Williams", "Jordan Lee", "Taylor Brown", "Morgan Davis"];
+    const fakeNames = ["Alex Johnson", "Sam Williams", "Jordan Lee", "Taylor Brown", "Morgan Davis", "Casey Park", "Drew Nguyen", "Skyler Adams"];
     const fakeName = fakeNames[Math.floor(Math.random() * fakeNames.length)];
+    const fakePlatforms = ["TikTok", "Instagram", "YouTube", "Twitter/X"];
+    const fakeCategories = ["Beauty", "Health", "Tech", "Fashion", "Food", "Sports", "Travel", "Home"];
+    const fakePlatform = fakePlatforms[Math.floor(Math.random() * fakePlatforms.length)];
+    const fakeCategory = fakeCategories[Math.floor(Math.random() * fakeCategories.length)];
     const newApp: Application = {
       id: Date.now(),
       creator: fakeName,
-      platform: "TikTok",
+      platform: fakePlatform,
       followers: `${Math.floor(Math.random() * 100 + 10)}K`,
-      category: campaign.category,
+      category: fakeCategory,
       campaignId: campaign.id,
       campaignName: campaign.name,
       status: "pending",
-      address: campaign.paidProduct && campaign.productType === "physical" ? "123 Fake St, Los Angeles, CA 90001" : undefined,
+      address: campaign.paidProduct && campaign.productType === "physical" ? `${Math.floor(Math.random() * 9000 + 1000)} Oak St, ${["Los Angeles", "New York", "Chicago", "Austin"][Math.floor(Math.random() * 4)]}, ${["CA", "NY", "IL", "TX"][Math.floor(Math.random() * 4)]} ${Math.floor(Math.random() * 90000 + 10000)}` : undefined,
       email: campaign.paidProduct && campaign.productType === "digital" ? `${fakeName.toLowerCase().replace(" ", ".")}@email.com` : undefined,
       isSimulated: true,
     };
@@ -499,11 +503,17 @@ const BrandDashboard = () => {
 
   const handleCreateFakeCreator = () => {
     if (!fakeCreatorCampaignId) return;
-    const fakeNames = ["Riley Martinez", "Avery Clark", "Quinn Thompson", "Harper Wilson"];
-    const fakeName = fakeNames[Math.floor(Math.random() * fakeNames.length)];
-    const fakePlatforms = ["Instagram", "TikTok", "YouTube"];
-    const fakePlatform = fakePlatforms[Math.floor(Math.random() * fakePlatforms.length)];
-    const fakeFollowersNum = Math.floor(Math.random() * 50 + 5);
+    const fakeFirstNames = ["Riley", "Avery", "Quinn", "Harper", "Sage", "River", "Blake", "Jamie", "Rowan", "Finley", "Dakota", "Reese"];
+    const fakeLastNames = ["Martinez", "Clark", "Thompson", "Wilson", "Chen", "Patel", "Kim", "Santos", "Nakamura", "Okafor"];
+    const fakeName = `${fakeFirstNames[Math.floor(Math.random() * fakeFirstNames.length)]} ${fakeLastNames[Math.floor(Math.random() * fakeLastNames.length)]}`;
+    const allPlatforms = ["Instagram", "TikTok", "YouTube", "Twitter/X", "Facebook"];
+    const fakeCategories = ["Beauty", "Health", "Tech", "Fashion", "Food", "Sports", "Travel", "Home", "Education", "Entertainment"];
+    const fakePlatform = allPlatforms[Math.floor(Math.random() * 3)]; // primary
+    const fakeFollowersNum = Math.floor(Math.random() * 200 + 5);
+    const fakeCategory = fakeCategories[Math.floor(Math.random() * fakeCategories.length)];
+    const fakeClicks = Math.floor(Math.random() * 5000 + 100);
+    const fakeSales = Math.floor(Math.random() * 200 + 5);
+    const fakeEarnings = Math.floor(Math.random() * 2000 + 50);
 
     // Add to campaign
     setCampaigns((prev) => prev.map((c) => {
@@ -512,7 +522,7 @@ const BrandDashboard = () => {
           ...c,
           activeCreators: [
             ...c.activeCreators,
-            { name: fakeName, platform: fakePlatform, followers: `${fakeFollowersNum}K`, clicks: Math.floor(Math.random() * 500), sales: Math.floor(Math.random() * 30), earnings: Math.floor(Math.random() * 300) },
+            { name: fakeName, platform: fakePlatform, followers: `${fakeFollowersNum}K`, clicks: fakeClicks, sales: fakeSales, earnings: fakeEarnings },
           ],
         };
       }
@@ -527,7 +537,7 @@ const BrandDashboard = () => {
         creator: fakeName,
         platform: fakePlatform,
         followers: `${fakeFollowersNum}K`,
-        category: campaign.category,
+        category: fakeCategory,
         campaignId: campaign.id,
         campaignName: campaign.name,
         status: "accepted",
@@ -538,6 +548,20 @@ const BrandDashboard = () => {
 
     setShowFakeCreator(false);
     setFakeCreatorCampaignId(null);
+  };
+
+  const handleClearSimulatedApplications = () => {
+    setApplications((prev) => prev.filter((a) => !a.isSimulated));
+  };
+
+  const handleClearSimulatedCreators = () => {
+    // Remove simulated creators from campaigns
+    const simulatedNames = applications.filter((a) => a.isSimulated && a.status === "accepted").map((a) => a.creator);
+    setCampaigns((prev) => prev.map((c) => ({
+      ...c,
+      activeCreators: c.activeCreators.filter((cr) => !simulatedNames.includes(cr.name)),
+    })));
+    setApplications((prev) => prev.filter((a) => !(a.isSimulated && a.status === "accepted")));
   };
 
   const handleSaveSettings = () => {
