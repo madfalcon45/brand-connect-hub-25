@@ -885,6 +885,7 @@ const BrandDashboard = () => {
             {campaigns.filter((c) => c.status === "active" && !c.requireApply).length === 0 && (
               <p className="text-sm text-muted-foreground">No active instant-join campaigns. Create one with Instant Join first.</p>
             )}
+          </div>
           <div className="flex gap-3 justify-end">
             <Button variant="hero" disabled={!fakeCreatorCampaignId} onClick={handleCreateFakeCreator}>Create</Button>
             <Button variant="outline" onClick={() => setShowFakeCreator(false)}>Cancel</Button>
