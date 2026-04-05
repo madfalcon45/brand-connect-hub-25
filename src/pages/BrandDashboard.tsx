@@ -874,15 +874,17 @@ const BrandDashboard = () => {
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-foreground">Add Test Creator</DialogTitle>
-            <DialogDescription>Choose which campaign this test creator should join. They'll come with a sample portfolio and analytics.</DialogDescription>
+            <DialogDescription>Choose which instant-join campaign this test creator should join. They'll come with a sample portfolio and analytics.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            {campaigns.filter((c) => c.status === "active").map((c) => (
+            {campaigns.filter((c) => c.status === "active" && !c.requireApply).map((c) => (
               <button key={c.id} onClick={() => setFakeCreatorCampaignId(c.id)} className={`w-full text-left p-3 rounded-xl border text-sm transition-colors ${fakeCreatorCampaignId === c.id ? "border-primary bg-primary/5 text-primary" : "border-border text-foreground hover:bg-accent"}`}>
                 {c.name}
               </button>
             ))}
-          </div>
+            {campaigns.filter((c) => c.status === "active" && !c.requireApply).length === 0 && (
+              <p className="text-sm text-muted-foreground">No active instant-join campaigns. Create one with Instant Join first.</p>
+            )}
           <div className="flex gap-3 justify-end">
             <Button variant="hero" disabled={!fakeCreatorCampaignId} onClick={handleCreateFakeCreator}>Create</Button>
             <Button variant="outline" onClick={() => setShowFakeCreator(false)}>Cancel</Button>
