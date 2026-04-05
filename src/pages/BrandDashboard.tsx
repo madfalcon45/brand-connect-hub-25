@@ -477,18 +477,22 @@ const BrandDashboard = () => {
     if (!simulateCampaignId) return;
     const campaign = campaigns.find((c) => c.id === simulateCampaignId);
     if (!campaign) return;
-    const fakeNames = ["Alex Johnson", "Sam Williams", "Jordan Lee", "Taylor Brown", "Morgan Davis"];
+    const fakeNames = ["Alex Johnson", "Sam Williams", "Jordan Lee", "Taylor Brown", "Morgan Davis", "Casey Park", "Drew Nguyen", "Skyler Adams"];
     const fakeName = fakeNames[Math.floor(Math.random() * fakeNames.length)];
+    const fakePlatforms = ["TikTok", "Instagram", "YouTube", "Twitter/X"];
+    const fakeCategories = ["Beauty", "Health", "Tech", "Fashion", "Food", "Sports", "Travel", "Home"];
+    const fakePlatform = fakePlatforms[Math.floor(Math.random() * fakePlatforms.length)];
+    const fakeCategory = fakeCategories[Math.floor(Math.random() * fakeCategories.length)];
     const newApp: Application = {
       id: Date.now(),
       creator: fakeName,
-      platform: "TikTok",
+      platform: fakePlatform,
       followers: `${Math.floor(Math.random() * 100 + 10)}K`,
-      category: campaign.category,
+      category: fakeCategory,
       campaignId: campaign.id,
       campaignName: campaign.name,
       status: "pending",
-      address: campaign.paidProduct && campaign.productType === "physical" ? "123 Fake St, Los Angeles, CA 90001" : undefined,
+      address: campaign.paidProduct && campaign.productType === "physical" ? `${Math.floor(Math.random() * 9000 + 1000)} Oak St, ${["Los Angeles", "New York", "Chicago", "Austin"][Math.floor(Math.random() * 4)]}, ${["CA", "NY", "IL", "TX"][Math.floor(Math.random() * 4)]} ${Math.floor(Math.random() * 90000 + 10000)}` : undefined,
       email: campaign.paidProduct && campaign.productType === "digital" ? `${fakeName.toLowerCase().replace(" ", ".")}@email.com` : undefined,
       isSimulated: true,
     };
@@ -499,11 +503,17 @@ const BrandDashboard = () => {
 
   const handleCreateFakeCreator = () => {
     if (!fakeCreatorCampaignId) return;
-    const fakeNames = ["Riley Martinez", "Avery Clark", "Quinn Thompson", "Harper Wilson"];
-    const fakeName = fakeNames[Math.floor(Math.random() * fakeNames.length)];
-    const fakePlatforms = ["Instagram", "TikTok", "YouTube"];
-    const fakePlatform = fakePlatforms[Math.floor(Math.random() * fakePlatforms.length)];
-    const fakeFollowersNum = Math.floor(Math.random() * 50 + 5);
+    const fakeFirstNames = ["Riley", "Avery", "Quinn", "Harper", "Sage", "River", "Blake", "Jamie", "Rowan", "Finley", "Dakota", "Reese"];
+    const fakeLastNames = ["Martinez", "Clark", "Thompson", "Wilson", "Chen", "Patel", "Kim", "Santos", "Nakamura", "Okafor"];
+    const fakeName = `${fakeFirstNames[Math.floor(Math.random() * fakeFirstNames.length)]} ${fakeLastNames[Math.floor(Math.random() * fakeLastNames.length)]}`;
+    const allPlatforms = ["Instagram", "TikTok", "YouTube", "Twitter/X", "Facebook"];
+    const fakeCategories = ["Beauty", "Health", "Tech", "Fashion", "Food", "Sports", "Travel", "Home", "Education", "Entertainment"];
+    const fakePlatform = allPlatforms[Math.floor(Math.random() * 3)]; // primary
+    const fakeFollowersNum = Math.floor(Math.random() * 200 + 5);
+    const fakeCategory = fakeCategories[Math.floor(Math.random() * fakeCategories.length)];
+    const fakeClicks = Math.floor(Math.random() * 5000 + 100);
+    const fakeSales = Math.floor(Math.random() * 200 + 5);
+    const fakeEarnings = Math.floor(Math.random() * 2000 + 50);
 
     // Add to campaign
     setCampaigns((prev) => prev.map((c) => {
@@ -512,7 +522,7 @@ const BrandDashboard = () => {
           ...c,
           activeCreators: [
             ...c.activeCreators,
-            { name: fakeName, platform: fakePlatform, followers: `${fakeFollowersNum}K`, clicks: Math.floor(Math.random() * 500), sales: Math.floor(Math.random() * 30), earnings: Math.floor(Math.random() * 300) },
+            { name: fakeName, platform: fakePlatform, followers: `${fakeFollowersNum}K`, clicks: fakeClicks, sales: fakeSales, earnings: fakeEarnings },
           ],
         };
       }
@@ -527,7 +537,7 @@ const BrandDashboard = () => {
         creator: fakeName,
         platform: fakePlatform,
         followers: `${fakeFollowersNum}K`,
-        category: campaign.category,
+        category: fakeCategory,
         campaignId: campaign.id,
         campaignName: campaign.name,
         status: "accepted",
@@ -538,6 +548,20 @@ const BrandDashboard = () => {
 
     setShowFakeCreator(false);
     setFakeCreatorCampaignId(null);
+  };
+
+  const handleClearSimulatedApplications = () => {
+    setApplications((prev) => prev.filter((a) => !a.isSimulated));
+  };
+
+  const handleClearSimulatedCreators = () => {
+    // Remove simulated creators from campaigns
+    const simulatedNames = applications.filter((a) => a.isSimulated && a.status === "accepted").map((a) => a.creator);
+    setCampaigns((prev) => prev.map((c) => ({
+      ...c,
+      activeCreators: c.activeCreators.filter((cr) => !simulatedNames.includes(cr.name)),
+    })));
+    setApplications((prev) => prev.filter((a) => !(a.isSimulated && a.status === "accepted")));
   };
 
   const handleSaveSettings = () => {
@@ -609,12 +633,12 @@ const BrandDashboard = () => {
   const activeCampaigns = campaigns.filter((c) => c.status === "active");
 
   const exampleCreatorCampaigns = [
-    { name: "Hydra Glow Moisturizer", brand: "GlowSkin Co.", category: "Beauty", platform: "TikTok", payMethod: "Hybrid: 6% + $8/100 clicks", signOnPay: 30, isPro: true, requireApply: true, description: "Promote our bestselling moisturizer to your audience with honest reviews.", notes: "Use #GlowSkin and #HydraGlow in your posts", websiteUrl: "https://glowskin.co" },
-    { name: "ProFit Protein Shake", brand: "FitLife Labs", category: "Health", platform: "Instagram", payMethod: "Commission: 10%", signOnPay: 0, isPro: false, requireApply: false, description: "Share your fitness journey with our protein shake.", notes: "", websiteUrl: "https://fitlifelabs.com" },
-    { name: "AirPod Max Clone", brand: "TechBuddy", category: "Tech", platform: "YouTube", payMethod: "Flat: $15/100 clicks", signOnPay: 50, isPro: true, requireApply: true, description: "Review our premium wireless headphones.", notes: "Focus on sound quality and comfort", websiteUrl: "https://techbuddy.io" },
-    { name: "Cozy Candle Set", brand: "HomeNest", category: "Home", platform: "TikTok", payMethod: "Commission: 5%", signOnPay: 0, isPro: false, requireApply: false, description: "Feature our artisan candle collection in your lifestyle content.", notes: "", websiteUrl: "" },
-    { name: "Bamboo Water Bottle", brand: "EcoLife", category: "Health", platform: "Instagram", payMethod: "Hybrid: 4% + $5/100 clicks", signOnPay: 15, isPro: true, requireApply: true, description: "Eco-friendly hydration for the conscious consumer.", notes: "Highlight sustainability angle", websiteUrl: "https://ecolife.com" },
-    { name: "Wireless Charger Pad", brand: "ChargePro", category: "Tech", platform: "YouTube", payMethod: "Flat: $12/100 clicks", signOnPay: 0, isPro: false, requireApply: true, description: "Showcase our fast wireless charging technology.", notes: "", websiteUrl: "" },
+    { name: "Hydra Glow Moisturizer", brand: "GlowSkin Co.", category: "Beauty", adPlatforms: ["TikTok", "Instagram"], payMethod: "Hybrid: 6% + $8/100 clicks", signOnPay: 30, isPro: true, requireApply: true, description: "Promote our bestselling moisturizer to your audience with honest reviews.", notes: "Use #GlowSkin and #HydraGlow in your posts", websiteUrl: "https://glowskin.co" },
+    { name: "ProFit Protein Shake", brand: "FitLife Labs", category: "Health", adPlatforms: ["Instagram"], payMethod: "Commission: 10%", signOnPay: 0, isPro: false, requireApply: false, description: "Share your fitness journey with our protein shake.", notes: "", websiteUrl: "https://fitlifelabs.com" },
+    { name: "AirPod Max Clone", brand: "TechBuddy", category: "Tech", adPlatforms: ["YouTube", "TikTok", "Instagram"], payMethod: "Flat: $15/100 clicks", signOnPay: 50, isPro: true, requireApply: true, description: "Review our premium wireless headphones.", notes: "Focus on sound quality and comfort", websiteUrl: "https://techbuddy.io" },
+    { name: "Cozy Candle Set", brand: "HomeNest", category: "Home", adPlatforms: ["TikTok"], payMethod: "Commission: 5%", signOnPay: 0, isPro: false, requireApply: false, description: "Feature our artisan candle collection in your lifestyle content.", notes: "", websiteUrl: "" },
+    { name: "Bamboo Water Bottle", brand: "EcoLife", category: "Health", adPlatforms: ["Instagram", "YouTube"], payMethod: "Hybrid: 4% + $5/100 clicks", signOnPay: 15, isPro: true, requireApply: true, description: "Eco-friendly hydration for the conscious consumer.", notes: "Highlight sustainability angle", websiteUrl: "https://ecolife.com" },
+    { name: "Wireless Charger Pad", brand: "ChargePro", category: "Tech", adPlatforms: ["YouTube"], payMethod: "Flat: $12/100 clicks", signOnPay: 0, isPro: false, requireApply: true, description: "Showcase our fast wireless charging technology.", notes: "", websiteUrl: "" },
   ];
 
   const cardClass = "p-5 rounded-2xl bg-card border border-border shadow-card dark-green-outline";
@@ -654,7 +678,7 @@ const BrandDashboard = () => {
           <h3 className="font-display font-bold text-lg text-foreground">{c.name}</h3>
           {c.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0">${c.signOnPay} sign-on pay</Badge>}
         </div>
-        <p className="text-sm text-muted-foreground">{c.category} · {c.activeCreators.length} active creators · {c.payMethod}</p>
+        <p className="text-sm text-muted-foreground">{c.category} · {c.activeCreators.length} active creators · {c.adPlatforms && c.adPlatforms.length > 1 ? "Multiple Platforms" : c.adPlatforms?.[0] || c.platforms?.[0] || "All"} · {c.payMethod}</p>
       </div>
     </div>
   );
@@ -829,13 +853,13 @@ const BrandDashboard = () => {
             <DialogDescription>Choose which campaign to simulate an application for.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            {campaigns.filter((c) => c.status === "active").map((c) => (
+            {campaigns.filter((c) => c.status === "active" && c.requireApply).map((c) => (
               <button key={c.id} onClick={() => setSimulateCampaignId(c.id)} className={`w-full text-left p-3 rounded-xl border text-sm transition-colors ${simulateCampaignId === c.id ? "border-primary bg-primary/5 text-primary" : "border-border text-foreground hover:bg-accent"}`}>
                 {c.name}
               </button>
             ))}
-            {campaigns.filter((c) => c.status === "active").length === 0 && (
-              <p className="text-sm text-muted-foreground">No active campaigns. Create one first.</p>
+            {campaigns.filter((c) => c.status === "active" && c.requireApply).length === 0 && (
+              <p className="text-sm text-muted-foreground">No active apply-only campaigns. Create one with Creator Approval first.</p>
             )}
           </div>
           <div className="flex gap-3 justify-end">
@@ -850,14 +874,17 @@ const BrandDashboard = () => {
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-foreground">Add Test Creator</DialogTitle>
-            <DialogDescription>Choose which campaign this test creator should join. They'll come with a sample portfolio and analytics.</DialogDescription>
+            <DialogDescription>Choose which instant-join campaign this test creator should join. They'll come with a sample portfolio and analytics.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            {campaigns.filter((c) => c.status === "active").map((c) => (
+            {campaigns.filter((c) => c.status === "active" && !c.requireApply).map((c) => (
               <button key={c.id} onClick={() => setFakeCreatorCampaignId(c.id)} className={`w-full text-left p-3 rounded-xl border text-sm transition-colors ${fakeCreatorCampaignId === c.id ? "border-primary bg-primary/5 text-primary" : "border-border text-foreground hover:bg-accent"}`}>
                 {c.name}
               </button>
             ))}
+            {campaigns.filter((c) => c.status === "active" && !c.requireApply).length === 0 && (
+              <p className="text-sm text-muted-foreground">No active instant-join campaigns. Create one with Instant Join first.</p>
+            )}
           </div>
           <div className="flex gap-3 justify-end">
             <Button variant="hero" disabled={!fakeCreatorCampaignId} onClick={handleCreateFakeCreator}>Create</Button>
@@ -1161,7 +1188,7 @@ const BrandDashboard = () => {
                 </div>
                 <div><label className="text-sm font-medium text-foreground">Description</label><textarea className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm min-h-[80px]" value={campaignForm.description} onChange={(e) => setCampaignForm({ ...campaignForm, description: e.target.value })} placeholder="Brief product description..." /></div>
                 <div><label className="text-sm font-medium text-foreground">Product Link</label><Input value={campaignForm.link} onChange={(e) => setCampaignForm({ ...campaignForm, link: e.target.value })} placeholder="https://yourstore.com/product" /></div>
-                <div><label className="text-sm font-medium text-foreground">Brand Website (optional)</label><Input value={campaignForm.websiteUrl} onChange={(e) => setCampaignForm({ ...campaignForm, websiteUrl: e.target.value })} placeholder="https://yourbrand.com" /></div>
+                
                 <div>
                   <div className="flex items-center gap-2">
                     <label className="text-sm font-medium text-foreground">Campaign Notes</label>
@@ -1341,10 +1368,15 @@ const BrandDashboard = () => {
                     <p className="text-sm font-medium text-foreground mb-2">Creator categories</p>
                     <div className="flex flex-wrap gap-2">
                       {campaignCategories.map((cat) => (
-                        <button key={cat} onClick={() => setCampaignForm({
-                          ...campaignForm,
-                          filterCategories: campaignForm.filterCategories.includes(cat) ? campaignForm.filterCategories.filter((c) => c !== cat) : [...campaignForm.filterCategories, cat],
-                        })} className={`px-3 py-1.5 rounded-full text-xs border ${campaignForm.filterCategories.includes(cat) ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}>
+                        <button key={cat} onClick={() => {
+                          if (cat === "All") {
+                            setCampaignForm({ ...campaignForm, filterCategories: ["All"] });
+                          } else {
+                            const withoutAll = campaignForm.filterCategories.filter((c) => c !== "All");
+                            const newCats = withoutAll.includes(cat) ? withoutAll.filter((c) => c !== cat) : [...withoutAll, cat];
+                            setCampaignForm({ ...campaignForm, filterCategories: newCats });
+                          }
+                        }} className={`px-3 py-1.5 rounded-full text-xs border ${campaignForm.filterCategories.includes(cat) ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}>
                           {cat}
                         </button>
                       ))}
@@ -1476,7 +1508,12 @@ const BrandDashboard = () => {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h1 className="font-display text-3xl font-bold text-foreground">Applications</h1>
-              <Button variant="outline" onClick={() => setShowSimulate(true)}>Simulate Creator Application</Button>
+              <div className="flex gap-2">
+                {applications.some((a) => a.isSimulated) && (
+                  <Button variant="outline" size="sm" className="text-destructive border-destructive/30" onClick={handleClearSimulatedApplications}>Clear Simulated</Button>
+                )}
+                <Button variant="outline" onClick={() => setShowSimulate(true)}>Simulate Creator Application</Button>
+              </div>
             </div>
             {applications.length === 0 ? (
               <p className="text-center text-muted-foreground py-12">No applications yet. Creators will appear here when they apply to your campaigns.</p>
@@ -1535,17 +1572,23 @@ const BrandDashboard = () => {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h1 className="font-display text-3xl font-bold text-foreground">Creators</h1>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setShowFakeCreator(true)}>
-                  <Plus className="w-4 h-4 mr-1" /> Add Test Creator
-                </Button>
-              </div>
             </div>
 
             <div className="flex gap-2 mb-4">
               <button onClick={() => setCreatorListTab("all")} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "all" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>All Creators</button>
               <button onClick={() => setCreatorListTab("my")} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "my" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>My Creators</button>
             </div>
+
+            {creatorListTab === "my" && (
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setShowFakeCreator(true)}>
+                  <Plus className="w-4 h-4 mr-1" /> Add Test Creator
+                </Button>
+                {applications.some((a) => a.isSimulated && a.status === "accepted") && (
+                  <Button variant="outline" size="sm" className="text-destructive border-destructive/30" onClick={handleClearSimulatedCreators}>Clear Simulated</Button>
+                )}
+              </div>
+            )}
 
             <p className="text-sm text-muted-foreground">
               {creatorListTab === "all" ? "AI-recommended creators based on your campaigns. Click a creator to see more details." : "Creators actively working with you."}
@@ -1959,7 +2002,7 @@ const BrandDashboard = () => {
                         )}
                         {c.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0 text-xs">${c.signOnPay} sign-on pay</Badge>}
                       </div>
-                      <p className="text-sm text-muted-foreground">{c.brand} · {c.category} · {c.platform}</p>
+                      <p className="text-sm text-muted-foreground">{c.brand} · {c.category} · {c.adPlatforms.length > 1 ? "Multiple Platforms" : c.adPlatforms[0] || "All"}</p>
                       <p className="text-xs text-muted-foreground mt-1">{c.payMethod}</p>
                       {c.description && <p className="text-xs text-muted-foreground mt-1">{c.description}</p>}
                     </div>
@@ -2034,7 +2077,7 @@ const BrandDashboard = () => {
                   {c.notes && <p className="text-sm text-muted-foreground italic">📌 {c.notes}</p>}
                   {c.websiteUrl && <a href={c.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1"><ExternalLink className="w-3 h-3" /> Brand Website</a>}
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Platform</p><p className="font-semibold text-foreground">{c.platform}</p></div>
+                    <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Platform</p><p className="font-semibold text-foreground">{c.adPlatforms.length > 1 ? c.adPlatforms.join(", ") : c.adPlatforms[0] || "All"}</p></div>
                     <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Payment</p><p className="font-semibold text-foreground">{c.payMethod}</p></div>
                     {c.signOnPay > 0 && <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Sign-On Pay</p><p className="font-semibold text-primary">${c.signOnPay}</p></div>}
                   </div>
