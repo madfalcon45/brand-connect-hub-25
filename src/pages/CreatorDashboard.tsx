@@ -563,7 +563,7 @@ const CreatorDashboard = () => {
                           </div>
                           <p className="text-sm text-muted-foreground">
                             <button className="text-primary hover:underline" onClick={(e) => { e.stopPropagation(); setViewingBrand(c.brand); }}>{c.brand}</button>
-                            {" · "}{c.category} · {c.platform}
+                            {" · "}{c.category} · {c.adPlatforms && c.adPlatforms.length > 1 ? "Multiple Platforms" : c.platform}
                           </p>
                           <p className="text-xs text-muted-foreground mt-1">{c.payMethod}</p>
                         </div>
