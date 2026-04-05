@@ -128,7 +128,7 @@ const CreatorDashboard = () => {
     if (filterCategory && c.category !== filterCategory) return false;
     if (searchQuery && !c.product.toLowerCase().includes(searchQuery.toLowerCase()) && !c.brand.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     if (filterPayType && getPayType(c.payMethod) !== filterPayType) return false;
-    if (filterPlatform.length > 0 && !filterPlatform.includes(c.platform)) return false;
+    if (filterPlatform.length > 0 && !filterPlatform.includes(c.platform) && !(c.adPlatforms && c.adPlatforms.some((p: string) => filterPlatform.includes(p)))) return false;
     if (filterSignOnPay && c.signOnPay <= 0) return false;
     if (filterSignOnPay && filterMinSignOnPay && c.signOnPay < Number(filterMinSignOnPay)) return false;
     if (viewingBrand && c.brand !== viewingBrand) return false;
