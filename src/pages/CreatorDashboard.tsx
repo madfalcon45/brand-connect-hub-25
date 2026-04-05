@@ -466,7 +466,7 @@ const CreatorDashboard = () => {
                               <h3 className="font-display font-bold text-foreground">{c.product}</h3>
                               {c.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0 text-xs">${c.signOnPay} sign-on pay</Badge>}
                             </div>
-                            <p className="text-sm text-muted-foreground">{c.category} · {c.platform}</p>
+                            <p className="text-sm text-muted-foreground">{c.category} · {c.adPlatforms && c.adPlatforms.length > 1 ? "Multiple Platforms" : c.platform}</p>
                           </div>
                         </div>
                         <div onClick={(e) => e.stopPropagation()}>
