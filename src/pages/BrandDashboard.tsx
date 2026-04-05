@@ -1983,7 +1983,7 @@ const BrandDashboard = () => {
                         )}
                         {c.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0 text-xs">${c.signOnPay} sign-on pay</Badge>}
                       </div>
-                      <p className="text-sm text-muted-foreground">{c.brand} · {c.category} · {c.platform}</p>
+                      <p className="text-sm text-muted-foreground">{c.brand} · {c.category} · {c.adPlatforms.length > 1 ? "Multiple Platforms" : c.adPlatforms[0] || "All"}</p>
                       <p className="text-xs text-muted-foreground mt-1">{c.payMethod}</p>
                       {c.description && <p className="text-xs text-muted-foreground mt-1">{c.description}</p>}
                     </div>
