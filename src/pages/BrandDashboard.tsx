@@ -1503,7 +1503,12 @@ const BrandDashboard = () => {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h1 className="font-display text-3xl font-bold text-foreground">Applications</h1>
-              <Button variant="outline" onClick={() => setShowSimulate(true)}>Simulate Creator Application</Button>
+              <div className="flex gap-2">
+                {applications.some((a) => a.isSimulated) && (
+                  <Button variant="outline" size="sm" className="text-destructive border-destructive/30" onClick={handleClearSimulatedApplications}>Clear Simulated</Button>
+                )}
+                <Button variant="outline" onClick={() => setShowSimulate(true)}>Simulate Creator Application</Button>
+              </div>
             </div>
             {applications.length === 0 ? (
               <p className="text-center text-muted-foreground py-12">No applications yet. Creators will appear here when they apply to your campaigns.</p>
