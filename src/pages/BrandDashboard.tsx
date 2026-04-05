@@ -1589,7 +1589,6 @@ const BrandDashboard = () => {
                 )}
               </div>
             )}
-            </div>
 
             <p className="text-sm text-muted-foreground">
               {creatorListTab === "all" ? "AI-recommended creators based on your campaigns. Click a creator to see more details." : "Creators actively working with you."}
