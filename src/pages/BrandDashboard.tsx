@@ -1161,7 +1161,7 @@ const BrandDashboard = () => {
                 </div>
                 <div><label className="text-sm font-medium text-foreground">Description</label><textarea className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm min-h-[80px]" value={campaignForm.description} onChange={(e) => setCampaignForm({ ...campaignForm, description: e.target.value })} placeholder="Brief product description..." /></div>
                 <div><label className="text-sm font-medium text-foreground">Product Link</label><Input value={campaignForm.link} onChange={(e) => setCampaignForm({ ...campaignForm, link: e.target.value })} placeholder="https://yourstore.com/product" /></div>
-                <div><label className="text-sm font-medium text-foreground">Brand Website (optional)</label><Input value={campaignForm.websiteUrl} onChange={(e) => setCampaignForm({ ...campaignForm, websiteUrl: e.target.value })} placeholder="https://yourbrand.com" /></div>
+                
                 <div>
                   <div className="flex items-center gap-2">
                     <label className="text-sm font-medium text-foreground">Campaign Notes</label>
