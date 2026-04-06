@@ -650,6 +650,7 @@ const BrandDashboard = () => {
   }, [darkMode]);
 
   const activeCampaigns = campaigns.filter((c) => c.status === "active");
+  const todayStr = new Date().toISOString().split("T")[0];
 
   const exampleCreatorCampaigns = [
     { name: "Hydra Glow Moisturizer", brand: "GlowSkin Co.", category: "Beauty", adPlatforms: ["TikTok", "Instagram"], payMethod: "Hybrid: 6% + $8/100 clicks", signOnPay: 30, isPro: true, requireApply: true, description: "Promote our bestselling moisturizer to your audience with honest reviews.", notes: "Use #GlowSkin and #HydraGlow in your posts", websiteUrl: "https://glowskin.co" },
