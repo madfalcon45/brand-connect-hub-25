@@ -1525,7 +1525,7 @@ const BrandDashboard = () => {
           </div>
         )}
 
-        {tab === "applications" && (
+        {tab === "applications" && !appCreatorDetail && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h1 className="font-display text-3xl font-bold text-foreground">Applications</h1>
@@ -1544,10 +1544,10 @@ const BrandDashboard = () => {
                   <div key={app.id} className={cardClass + " space-y-3"}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold cursor-pointer" onClick={() => { setTab("creators"); setSelectedCreatorDetail(app.creator); }}>{app.creator[0]}</div>
+                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold cursor-pointer" onClick={() => setAppCreatorDetail(app.creator)}>{app.creator[0]}</div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <p className="font-semibold text-foreground cursor-pointer hover:text-primary transition-colors" onClick={() => { setTab("creators"); setSelectedCreatorDetail(app.creator); }}>{app.creator}</p>
+                            <p className="font-semibold text-foreground cursor-pointer hover:text-primary transition-colors" onClick={() => setAppCreatorDetail(app.creator)}>{app.creator}</p>
                             {app.isSimulated && <Badge variant="secondary" className="text-xs">Simulated</Badge>}
                           </div>
                           <p className="text-sm text-muted-foreground">{app.platform} · {app.followers} followers · {app.category}</p>
@@ -1588,6 +1588,109 @@ const BrandDashboard = () => {
             )}
           </div>
         )}
+
+        {/* Inline creator detail from applications */}
+        {tab === "applications" && appCreatorDetail && (() => {
+          const cr = allCreators.find((c) => c.name === appCreatorDetail);
+          const creatorApps = applications.filter((a) => a.creator === appCreatorDetail);
+          if (!cr) {
+            // Simulated creator - show basic info from application
+            const app = applications.find((a) => a.creator === appCreatorDetail);
+            if (!app) return null;
+            return (
+              <div className="max-w-2xl space-y-6">
+                <button onClick={() => setAppCreatorDetail(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to applications</button>
+                <div className={sectionCardClass + " space-y-4"}>
+                  <div className="flex items-center gap-4">
+                    <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-3xl">{app.creator[0]}</div>
+                    <div>
+                      <h1 className="font-display text-2xl font-bold text-foreground">{app.creator}</h1>
+                      <p className="text-muted-foreground">{app.category} · {app.platform} · {app.followers} followers</p>
+                      {app.isSimulated && <Badge variant="secondary" className="text-xs mt-1">Simulated</Badge>}
+                    </div>
+                  </div>
+                  {app.address && <p className="text-sm text-muted-foreground"><MapPin className="w-3 h-3 inline mr-1" />{app.address}</p>}
+                  {app.email && <p className="text-sm text-muted-foreground">📧 {app.email}</p>}
+                  <p className="text-sm text-foreground">Applied to: {app.campaignName}</p>
+                  <Badge variant={app.status === "accepted" ? "default" : app.status === "denied" ? "secondary" : "outline"}>{app.status}</Badge>
+                </div>
+              </div>
+            );
+          }
+          const relation = getCreatorRelation(cr.name);
+          const isInvited = invitedCreators.some((ic) => ic.name === cr.name);
+          const creatorCampaigns = campaigns.filter((c) => c.activeCreators.some((ac) => ac.name === cr.name));
+          return (
+            <div className="max-w-2xl space-y-6">
+              <button onClick={() => setAppCreatorDetail(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to applications</button>
+              <div className={sectionCardClass + " space-y-6"}>
+                <div className="flex items-center gap-4">
+                  <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-3xl">{cr.name[0]}</div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h1 className="font-display text-2xl font-bold text-foreground">{cr.name}</h1>
+                      <Badge className="bg-success/10 text-primary border-0">{cr.match}% match</Badge>
+                      {relation === "active" && <Badge className="bg-primary/10 text-primary border-0">Works with you</Badge>}
+                    </div>
+                    <p className="text-muted-foreground">{cr.category} · {cr.country}</p>
+                  </div>
+                </div>
+                <p className="text-sm text-foreground">{cr.bio}</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Total Followers</p><p className="font-semibold text-foreground">{(cr.totalFollowers / 1000).toFixed(0)}K</p></div>
+                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Revenue Earned</p><p className="font-semibold text-primary">${cr.revenue.toLocaleString()}</p></div>
+                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Total Sales</p><p className="font-semibold text-foreground">{cr.sales}</p></div>
+                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Total Clicks</p><p className="font-semibold text-foreground">{cr.clicks.toLocaleString()}</p></div>
+                </div>
+                <div>
+                  <h3 className="font-display font-semibold text-foreground mb-2">Platforms</h3>
+                  <div className="flex flex-wrap gap-3">
+                    {cr.platforms.map((p, i) => (
+                      <div key={i} className="p-3 rounded-xl bg-muted/50 dark-green-outline">
+                        <p className="text-xs text-muted-foreground">{p.name}</p>
+                        <p className="font-semibold text-foreground">{p.followers}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {cr.portfolio.length > 0 && (
+                  <div>
+                    <h3 className="font-display font-semibold text-foreground mb-2">Portfolio</h3>
+                    <div className="space-y-2">
+                      {cr.portfolio.map((item, i) => (
+                        <div key={i} className="p-3 rounded-xl border border-border dark-green-outline">
+                          <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">{item.url}</a>
+                          {item.description && <p className="text-xs text-muted-foreground mt-1">{item.description}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {creatorApps.length > 0 && (
+                  <div>
+                    <h3 className="font-display font-semibold text-foreground mb-2">Applications</h3>
+                    {creatorApps.map((app) => (
+                      <div key={app.id} className="p-3 rounded-xl border border-border flex items-center justify-between dark-green-outline mb-2">
+                        <div><p className="font-semibold text-foreground text-sm">{app.campaignName}</p></div>
+                        <Badge variant={app.status === "accepted" ? "default" : app.status === "denied" ? "secondary" : "outline"}>{app.status}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex gap-3">
+                  {isInvited ? (
+                    <Button variant="secondary" disabled><Check className="w-4 h-4 mr-1" /> Invited</Button>
+                  ) : (
+                    <Button variant="hero" onClick={() => handleInviteCreator(cr.name)}><Send className="w-4 h-4 mr-1" /> Invite to Campaign</Button>
+                  )}
+                  <Button variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => setShowBlockConfirm(cr.name)}>
+                    <Ban className="w-4 h-4 mr-1" /> Block
+                  </Button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {tab === "creators" && !selectedCreatorDetail && (
           <div className="space-y-6">
