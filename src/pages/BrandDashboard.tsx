@@ -857,7 +857,7 @@ const BrandDashboard = () => {
             </div>
             <div>
               <label className="text-sm font-medium text-foreground">Expected Delivery Date (optional)</label>
-              <Input type="date" value={shippingDeliveryDate} onChange={(e) => setShippingDeliveryDate(e.target.value)} />
+              <Input type="date" value={shippingDeliveryDate} onChange={(e) => setShippingDeliveryDate(e.target.value)} min={todayStr} />
             </div>
             <Button variant="hero" className="w-full" onClick={handleMarkAsShipped}>
               {showMarkShipped && campaigns.find((c) => c.id === showMarkShipped.campaignId)?.productType === "digital" ? "Mark as Emailed" : "Mark as Shipped"}
