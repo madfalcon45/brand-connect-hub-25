@@ -7,7 +7,7 @@ import {
   BarChart3, Users, DollarSign, Settings, LogOut, Search, Filter,
   Star, TrendingUp, Link2, ExternalLink, ClipboardCopy, FileText, Eye, Check,
   User, KeyRound, Moon, Sun, Crown, Info, Plus, CreditCard, MoreHorizontal,
-  ChevronLeft, Upload, Video, XCircle, AlertCircle, X as XIcon, MapPin, Truck, Package
+  ChevronLeft, Upload, Video, XCircle, AlertCircle, X as XIcon, MapPin, Truck, Package, Globe, Image as ImageIcon
 } from "lucide-react";
 import {
   Tooltip,
@@ -60,6 +60,13 @@ const CreatorDashboard = () => {
   const [productApplyAddress, setProductApplyAddress] = useState("");
   const [productApplyEmail, setProductApplyEmail] = useState("");
   const [productApplyCampaignId, setProductApplyCampaignId] = useState<number | null>(null);
+  const [productAppliedIds, setProductAppliedIds] = useState<number[]>([]);
+
+  // Portfolio social links & bio
+  const [socialLinks, setSocialLinks] = useState<{ platform: string; url: string }[]>([]);
+  const [newSocialPlatform, setNewSocialPlatform] = useState("TikTok");
+  const [newSocialUrl, setNewSocialUrl] = useState("");
+  const [bio, setBio] = useState("");
 
   const [settingsName, setSettingsName] = useState(() => localStorage.getItem("allcall_creator_name") || "");
   const [settingsEmail, setSettingsEmail] = useState(() => localStorage.getItem("allcall_email") || "");
@@ -72,7 +79,7 @@ const CreatorDashboard = () => {
   const [simClicks, setSimClicks] = useState(0);
   const [simSales, setSimSales] = useState(0);
   const [simRevenue, setSimRevenue] = useState(0);
-  const [simGraphData, setSimGraphData] = useState<{ month: string; earnings: number; clicks: number; sales: number }[]>([]);
+  const [simGraphData, setSimGraphData] = useState<{ month: string; earnings: number; clicks: number; sales: number; revenue: number }[]>([]);
 
   // Shipping
   const incomingShipments = [
@@ -166,6 +173,9 @@ const CreatorDashboard = () => {
   };
 
   const submitProductApplication = () => {
+    if (productApplyCampaignId) {
+      setProductAppliedIds((prev) => [...prev, productApplyCampaignId]);
+    }
     setShowProductApply(false);
     setProductApplyAddress("");
     setProductApplyEmail("");
@@ -225,6 +235,13 @@ const CreatorDashboard = () => {
     }
   };
 
+  const handleAddSocialLink = () => {
+    if (newSocialUrl.trim()) {
+      setSocialLinks([...socialLinks, { platform: newSocialPlatform, url: newSocialUrl.trim() }]);
+      setNewSocialUrl("");
+    }
+  };
+
   const handleSaveSettings = () => {
     localStorage.setItem("allcall_creator_name", settingsName);
     localStorage.setItem("allcall_email", settingsEmail);
@@ -248,17 +265,16 @@ const CreatorDashboard = () => {
     setSimRevenue(revenue);
     setSimulatedAnalytics(true);
 
-    // Generate graph data
     const months = ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"];
     const graphData = months.map((month) => ({
       month,
       earnings: Math.floor(Math.random() * (earnings / 3)),
       clicks: Math.floor(Math.random() * (clicks / 3)),
       sales: Math.floor(Math.random() * (sales / 3)),
+      revenue: Math.floor(Math.random() * (revenue / 3)),
     }));
     setSimGraphData(graphData);
 
-    // Also give joined campaigns some random values
     setJoinedCampaigns((prev) => prev.map((c) => ({
       ...c,
       earnings: Math.floor(Math.random() * 800 + 50),
@@ -284,6 +300,41 @@ const CreatorDashboard = () => {
 
   const toggleAnalyticsLine = (line: string) => {
     setAnalyticsLines((prev) => prev.includes(line) ? prev.filter((l) => l !== line) : [...prev, line]);
+  };
+
+  // Product image placeholder component
+  const ProductImagePlaceholder = ({ size = "w-14 h-14" }: { size?: string }) => (
+    <div className={`${size} rounded-xl bg-muted/50 border border-border flex flex-col items-center justify-center`}>
+      <ImageIcon className="w-4 h-4 text-muted-foreground" />
+      <span className="text-[8px] text-muted-foreground mt-0.5">Product</span>
+    </div>
+  );
+
+  const renderAnalyticsGraph = (metricKey: string, data: typeof simGraphData) => {
+    if (!simulatedAnalytics || data.length === 0) {
+      return (
+        <div className="h-48 rounded-xl bg-muted/30 flex items-center justify-center border border-border dark-green-outline">
+          <div className="text-center">
+            <TrendingUp className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">Click "Simulate Analytics" to see sample data</p>
+          </div>
+        </div>
+      );
+    }
+    const colorMap: Record<string, string> = { earnings: "bg-primary/70", clicks: "bg-blue-500/70", sales: "bg-orange-500/70", revenue: "bg-purple-500/70" };
+    const maxVal = Math.max(...data.map((x) => (x as any)[metricKey] || 0), 1);
+    return (
+      <div className="h-48 rounded-xl bg-muted/30 border border-border dark-green-outline p-4 flex items-end gap-1">
+        {data.map((d, i) => (
+          <div key={i} className="flex-1 flex flex-col items-center gap-1">
+            <div className="flex gap-0.5 items-end h-32 w-full justify-center">
+              <div className={`flex-1 ${colorMap[metricKey] || "bg-primary/70"} rounded-t`} style={{ height: `${((d as any)[metricKey] / maxVal) * 100}%`, minHeight: 4 }} />
+            </div>
+            <span className="text-xs text-muted-foreground">{d.month}</span>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   const dashboardFooter = (
@@ -460,7 +511,7 @@ const CreatorDashboard = () => {
                     <div key={c.id} className={cardClass + " hover:shadow-card-hover transition-shadow cursor-pointer"} onClick={() => setSelectedCampaign(c.id)}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                          <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-xl">{c.brand[0]}</div>
+                          <ProductImagePlaceholder />
                           <div>
                             <div className="flex items-center gap-2 flex-wrap">
                               <h3 className="font-display font-bold text-foreground">{c.product}</h3>
@@ -549,7 +600,7 @@ const CreatorDashboard = () => {
                   <div key={c.id} className={cardClass + " hover:shadow-card-hover transition-shadow cursor-pointer"} onClick={() => setSelectedCampaign(c.id)}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-xl">{c.brand[0]}</div>
+                        <ProductImagePlaceholder />
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="font-display font-bold text-foreground">{c.product}</h3>
@@ -595,7 +646,7 @@ const CreatorDashboard = () => {
               <button onClick={() => setSelectedCampaign(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to campaigns</button>
               <div className={sectionCardClass + " space-y-6"}>
                 <div className="flex items-center gap-4">
-                  <div className="w-20 h-20 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-3xl">{c.brand[0]}</div>
+                  <ProductImagePlaceholder size="w-20 h-20" />
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <h1 className="font-display text-2xl font-bold text-foreground">{c.product}</h1>
@@ -652,9 +703,12 @@ const CreatorDashboard = () => {
                   {joinedCampaigns.map((c) => (
                     <div key={c.id} className={cardClass + " cursor-pointer hover:shadow-card-hover transition-shadow"} onClick={() => setSelectedMyCampaign(c.id)}>
                       <div className="flex items-center justify-between mb-4">
-                        <div>
-                          <h3 className="font-display font-bold text-foreground hover:text-primary transition-colors">{c.product}</h3>
-                          <p className="text-sm text-muted-foreground">{c.brand}</p>
+                        <div className="flex items-center gap-4">
+                          <ProductImagePlaceholder />
+                          <div>
+                            <h3 className="font-display font-bold text-foreground hover:text-primary transition-colors">{c.product}</h3>
+                            <p className="text-sm text-muted-foreground">{c.brand}</p>
+                          </div>
                         </div>
                         <div className="flex items-center gap-3">
                           <div className="text-right">
@@ -697,9 +751,10 @@ const CreatorDashboard = () => {
               )}
             </div>
 
+            {/* Pending Applications */}
             <div className="space-y-4">
               <h2 className="font-display text-xl font-semibold text-foreground">Pending Applications</h2>
-              {appliedIds.length === 0 ? (
+              {appliedIds.length === 0 && productAppliedIds.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">No pending applications.</p>
               ) : (
                 <div className="space-y-3">
@@ -709,7 +764,7 @@ const CreatorDashboard = () => {
                     return (
                       <div key={id} className={cardClass + " flex items-center justify-between"}>
                         <div className="flex items-center gap-4 cursor-pointer" onClick={() => { setTab("feed"); setSelectedCampaign(id); }}>
-                          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold">{c.brand[0]}</div>
+                          <ProductImagePlaceholder size="w-12 h-12" />
                           <div>
                             <h3 className="font-semibold text-foreground hover:text-primary transition-colors">{c.product}</h3>
                             <p className="text-sm text-muted-foreground">{c.brand} · {c.category}</p>
@@ -731,6 +786,23 @@ const CreatorDashboard = () => {
                       </div>
                     );
                   })}
+                  {/* Product applications */}
+                  {productAppliedIds.filter((id) => !appliedIds.includes(id)).map((id) => {
+                    const c = availableCampaigns.find((x) => x.id === id);
+                    if (!c) return null;
+                    return (
+                      <div key={`product-${id}`} className={cardClass + " flex items-center justify-between"}>
+                        <div className="flex items-center gap-4 cursor-pointer" onClick={() => { setTab("feed"); setSelectedCampaign(id); }}>
+                          <ProductImagePlaceholder size="w-12 h-12" />
+                          <div>
+                            <h3 className="font-semibold text-foreground hover:text-primary transition-colors">{c.product}</h3>
+                            <p className="text-sm text-muted-foreground">{c.brand} · Product Application</p>
+                          </div>
+                        </div>
+                        <Badge variant="secondary">Product Pending</Badge>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -742,12 +814,13 @@ const CreatorDashboard = () => {
           const joined = joinedCampaigns.find((c) => c.id === selectedMyCampaign);
           const campaign = availableCampaigns.find((c) => c.id === selectedMyCampaign);
           if (!joined || !campaign) return null;
+          const hasAppliedForProduct = productAppliedIds.includes(campaign.id);
           return (
             <div className="max-w-2xl space-y-6">
               <button onClick={() => setSelectedMyCampaign(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to my campaigns</button>
               <div className={sectionCardClass + " space-y-6"}>
                 <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-2xl">{campaign.brand[0]}</div>
+                  <ProductImagePlaceholder size="w-16 h-16" />
                   <div>
                     <h1 className="font-display text-2xl font-bold text-foreground">{campaign.product}</h1>
                     <p className="text-muted-foreground">{campaign.brand} · {campaign.category}</p>
@@ -758,7 +831,7 @@ const CreatorDashboard = () => {
                 {campaign.productLink && <a href={campaign.productLink} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1"><ExternalLink className="w-3 h-3" /> Product Link</a>}
                 {campaign.websiteUrl && <a href={campaign.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1"><ExternalLink className="w-3 h-3" /> Brand Website</a>}
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Platform</p><p className="font-semibold text-foreground">{campaign.platform}</p></div>
+                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Platform</p><p className="font-semibold text-foreground">{campaign.adPlatforms ? campaign.adPlatforms.join(", ") : campaign.platform}</p></div>
                   <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Payment</p><p className="font-semibold text-foreground">{campaign.payMethod}</p></div>
                   {campaign.signOnPay > 0 && <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Sign-On Pay</p><p className="font-semibold text-primary">${campaign.signOnPay}</p></div>}
                 </div>
@@ -775,6 +848,20 @@ const CreatorDashboard = () => {
                   <p className="text-xs text-muted-foreground">Your Creator Code</p>
                   <p className="text-lg font-mono font-bold text-primary">{joined.code}</p>
                 </div>
+
+                {/* Apply for product option if campaign needs product and creator hasn't applied */}
+                {campaign.needsProduct && !hasAppliedForProduct && (
+                  <div className="p-3 rounded-lg bg-warning/10 border border-warning/30 space-y-2">
+                    <p className="text-sm font-medium text-foreground">📦 This campaign involves a {campaign.productType === "digital" ? "digital" : "physical"} product</p>
+                    <p className="text-xs text-muted-foreground">Apply to receive the product from the brand.</p>
+                    <Button variant="outline" size="sm" onClick={() => handleProductApply(campaign.id)}>Apply for Product</Button>
+                  </div>
+                )}
+                {campaign.needsProduct && hasAppliedForProduct && (
+                  <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                    <p className="text-sm text-foreground flex items-center gap-2"><Package className="w-4 h-4 text-primary" /> Product application submitted — awaiting brand approval.</p>
+                  </div>
+                )}
               </div>
               <div className={sectionCardClass}>
                 <h2 className="font-display text-lg font-semibold text-foreground mb-4">Your Performance</h2>
@@ -882,6 +969,52 @@ const CreatorDashboard = () => {
             <h1 className="font-display text-3xl font-bold text-foreground">Portfolio</h1>
             <p className="text-sm text-muted-foreground">Showcase your best work. Brands can see this when they view your profile.</p>
 
+            {/* Bio / Description */}
+            <div className={sectionCardClass + " space-y-4"}>
+              <h2 className="font-display text-lg font-semibold text-foreground">Bio / Description</h2>
+              <textarea
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm min-h-[80px]"
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                placeholder="Tell brands about yourself, your content style, and what makes you unique..."
+              />
+            </div>
+
+            {/* Social Links */}
+            <div className={sectionCardClass + " space-y-4"}>
+              <h2 className="font-display text-lg font-semibold text-foreground">Social Links</h2>
+              <div className="flex gap-2 items-end">
+                <div className="w-32">
+                  <select className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm" value={newSocialPlatform} onChange={(e) => setNewSocialPlatform(e.target.value)}>
+                    {["TikTok", "Instagram", "YouTube", "Twitter/X", "Facebook", "LinkedIn", "Website"].map((p) => <option key={p}>{p}</option>)}
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <Input value={newSocialUrl} onChange={(e) => setNewSocialUrl(e.target.value)} placeholder="https://tiktok.com/@you" />
+                </div>
+                <Button variant="hero" size="sm" onClick={handleAddSocialLink} disabled={!newSocialUrl.trim()}>Add</Button>
+              </div>
+              {socialLinks.length > 0 && (
+                <div className="space-y-2">
+                  {socialLinks.map((sl, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-border dark-green-outline">
+                      <div className="flex items-center gap-3">
+                        <Globe className="w-4 h-4 text-primary" />
+                        <div>
+                          <p className="text-xs text-muted-foreground">{sl.platform}</p>
+                          <a href={sl.url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">{sl.url}</a>
+                        </div>
+                      </div>
+                      <button onClick={() => setSocialLinks(socialLinks.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-destructive">
+                        <XCircle className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Portfolio Videos/Links */}
             <div className={sectionCardClass + " space-y-4"}>
               <h2 className="font-display text-lg font-semibold text-foreground">Add Video / Link</h2>
               <div className="space-y-3">
@@ -979,49 +1112,6 @@ const CreatorDashboard = () => {
                 </div>
               ))}
             </div>
-
-            {/* Line graph */}
-            <div className={sectionCardClass + " space-y-4"}>
-              <h2 className="font-display text-lg font-semibold text-foreground">Performance Over Time</h2>
-              <div className="flex flex-wrap gap-2 mb-4">
-                {[
-                  { key: "earnings", label: "Earnings", color: "bg-primary" },
-                  { key: "clicks", label: "Clicks", color: "bg-blue-500" },
-                  { key: "sales", label: "Sales", color: "bg-orange-500" },
-                  { key: "campaigns", label: "Campaigns Joined", color: "bg-purple-500" },
-                ].map((line) => (
-                  <button key={line.key} onClick={() => toggleAnalyticsLine(line.key)} className={`px-3 py-1.5 rounded-full text-xs border flex items-center gap-2 ${analyticsLines.includes(line.key) ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}>
-                    <div className={`w-2 h-2 rounded-full ${line.color}`} />
-                    {line.label}
-                  </button>
-                ))}
-              </div>
-              {simulatedAnalytics && simGraphData.length > 0 ? (
-                <div className="h-48 rounded-xl bg-muted/30 border border-border dark-green-outline p-4 flex items-end gap-1">
-                  {simGraphData.map((d, i) => {
-                    const maxVal = Math.max(...simGraphData.map((x) => Math.max(x.earnings, x.clicks, x.sales)));
-                    return (
-                      <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                        <div className="flex gap-0.5 items-end h-32 w-full">
-                          {analyticsLines.includes("earnings") && <div className="flex-1 bg-primary/70 rounded-t" style={{ height: `${(d.earnings / maxVal) * 100}%`, minHeight: 4 }} />}
-                          {analyticsLines.includes("clicks") && <div className="flex-1 bg-blue-500/70 rounded-t" style={{ height: `${(d.clicks / maxVal) * 100}%`, minHeight: 4 }} />}
-                          {analyticsLines.includes("sales") && <div className="flex-1 bg-orange-500/70 rounded-t" style={{ height: `${(d.sales / maxVal) * 100}%`, minHeight: 4 }} />}
-                        </div>
-                        <span className="text-xs text-muted-foreground">{d.month}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="h-48 rounded-xl bg-muted/30 flex items-center justify-center border border-border dark-green-outline">
-                  <div className="text-center">
-                    <TrendingUp className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">Click "Simulate Analytics" to see sample data</p>
-                    <p className="text-xs text-muted-foreground">Showing: {analyticsLines.join(", ")}</p>
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         )}
 
@@ -1035,7 +1125,19 @@ const CreatorDashboard = () => {
               {analyticsDetail === "sales" && "Sales Breakdown"}
               {analyticsDetail === "revenue" && "Revenue Breakdown"}
             </h1>
+
+            {/* Individual graph for this metric */}
+            {analyticsDetail !== "campaigns" && (
+              <div className={sectionCardClass + " space-y-4"}>
+                <h2 className="font-display text-lg font-semibold text-foreground">
+                  {analyticsDetail === "earnings" ? "Earnings" : analyticsDetail === "clicks" ? "Clicks" : analyticsDetail === "sales" ? "Sales" : "Revenue"} Over Time
+                </h2>
+                {renderAnalyticsGraph(analyticsDetail, simGraphData)}
+              </div>
+            )}
+
             <div className={sectionCardClass}>
+              <h2 className="font-display text-lg font-semibold text-foreground mb-4">By Campaign</h2>
               {joinedCampaigns.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">No campaign data yet.</p>
               ) : (
