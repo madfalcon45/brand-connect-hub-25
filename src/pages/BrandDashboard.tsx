@@ -617,6 +617,7 @@ const BrandDashboard = () => {
     setAnalyticsDetail(null);
     setSubscriptionDetail(false);
     setCreatorViewSelected(null);
+    setAppCreatorDetail(null);
   };
 
   const handleDeleteCampaign = (id: number) => {
