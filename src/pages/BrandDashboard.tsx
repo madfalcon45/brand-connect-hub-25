@@ -141,6 +141,7 @@ const BrandDashboard = () => {
   const [showFakeCreator, setShowFakeCreator] = useState(false);
   const [fakeCreatorCampaignId, setFakeCreatorCampaignId] = useState<number | null>(null);
   const [showProductApproval, setShowProductApproval] = useState<Application | null>(null);
+  const [appCreatorDetail, setAppCreatorDetail] = useState<string | null>(null);
 
   // Shipping
   const [shippedProducts, setShippedProducts] = useState<ShippedProduct[]>([]);
