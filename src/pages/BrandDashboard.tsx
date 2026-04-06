@@ -1872,6 +1872,7 @@ const BrandDashboard = () => {
                             value={shippingDeliveryDate}
                             onChange={(e) => setShippingDeliveryDate(e.target.value)}
                             className="w-40"
+                            min={todayStr}
                           />
                           <Button variant="hero" size="sm" onClick={() => {
                             setShippedProducts((prev) => prev.map((s) =>
