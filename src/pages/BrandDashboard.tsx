@@ -141,6 +141,7 @@ const BrandDashboard = () => {
   const [showFakeCreator, setShowFakeCreator] = useState(false);
   const [fakeCreatorCampaignId, setFakeCreatorCampaignId] = useState<number | null>(null);
   const [showProductApproval, setShowProductApproval] = useState<Application | null>(null);
+  const [appCreatorDetail, setAppCreatorDetail] = useState<string | null>(null);
 
   // Shipping
   const [shippedProducts, setShippedProducts] = useState<ShippedProduct[]>([]);
@@ -195,14 +196,33 @@ const BrandDashboard = () => {
         return c.status === "active" ? "active" : "past";
       }
     }
+    // Also check accepted applications
+    if (applications.some((a) => a.creator === creatorName && a.status === "accepted")) {
+      return "active";
+    }
     return null;
+  };
+
+  // Build a combined list of creators for "my creators" including accepted applicants
+  const getMyCreators = () => {
+    const myCreatorNames = new Set<string>();
+    for (const c of campaigns) {
+      for (const cr of c.activeCreators) {
+        myCreatorNames.add(cr.name);
+      }
+    }
+    // Also add accepted applications
+    for (const a of applications) {
+      if (a.status === "accepted") myCreatorNames.add(a.creator);
+    }
+    return myCreatorNames;
   };
 
   const filteredCreators = allCreators.filter((cr) => {
     if (blockedCreators.includes(cr.name)) return false;
     if (creatorListTab === "my") {
-      const relation = getCreatorRelation(cr.name);
-      if (relation !== "active") return false;
+      const myNames = getMyCreators();
+      if (!myNames.has(cr.name)) return false;
     }
     if (creatorSearch && !cr.name.toLowerCase().includes(creatorSearch.toLowerCase())) return false;
     if (creatorFilterPlatform.length > 0 && !creatorFilterPlatform.includes(cr.platform)) return false;
@@ -597,6 +617,7 @@ const BrandDashboard = () => {
     setAnalyticsDetail(null);
     setSubscriptionDetail(false);
     setCreatorViewSelected(null);
+    setAppCreatorDetail(null);
   };
 
   const handleDeleteCampaign = (id: number) => {
@@ -631,6 +652,7 @@ const BrandDashboard = () => {
   }, [darkMode]);
 
   const activeCampaigns = campaigns.filter((c) => c.status === "active");
+  const todayStr = new Date().toISOString().split("T")[0];
 
   const exampleCreatorCampaigns = [
     { name: "Hydra Glow Moisturizer", brand: "GlowSkin Co.", category: "Beauty", adPlatforms: ["TikTok", "Instagram"], payMethod: "Hybrid: 6% + $8/100 clicks", signOnPay: 30, isPro: true, requireApply: true, description: "Promote our bestselling moisturizer to your audience with honest reviews.", notes: "Use #GlowSkin and #HydraGlow in your posts", websiteUrl: "https://glowskin.co" },
@@ -836,7 +858,7 @@ const BrandDashboard = () => {
             </div>
             <div>
               <label className="text-sm font-medium text-foreground">Expected Delivery Date (optional)</label>
-              <Input type="date" value={shippingDeliveryDate} onChange={(e) => setShippingDeliveryDate(e.target.value)} />
+              <Input type="date" value={shippingDeliveryDate} onChange={(e) => setShippingDeliveryDate(e.target.value)} min={todayStr} />
             </div>
             <Button variant="hero" className="w-full" onClick={handleMarkAsShipped}>
               {showMarkShipped && campaigns.find((c) => c.id === showMarkShipped.campaignId)?.productType === "digital" ? "Mark as Emailed" : "Mark as Shipped"}
@@ -1504,7 +1526,7 @@ const BrandDashboard = () => {
           </div>
         )}
 
-        {tab === "applications" && (
+        {tab === "applications" && !appCreatorDetail && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h1 className="font-display text-3xl font-bold text-foreground">Applications</h1>
@@ -1523,10 +1545,10 @@ const BrandDashboard = () => {
                   <div key={app.id} className={cardClass + " space-y-3"}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold cursor-pointer" onClick={() => { setTab("creators"); setSelectedCreatorDetail(app.creator); }}>{app.creator[0]}</div>
+                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold cursor-pointer" onClick={() => setAppCreatorDetail(app.creator)}>{app.creator[0]}</div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <p className="font-semibold text-foreground cursor-pointer hover:text-primary transition-colors" onClick={() => { setTab("creators"); setSelectedCreatorDetail(app.creator); }}>{app.creator}</p>
+                            <p className="font-semibold text-foreground cursor-pointer hover:text-primary transition-colors" onClick={() => setAppCreatorDetail(app.creator)}>{app.creator}</p>
                             {app.isSimulated && <Badge variant="secondary" className="text-xs">Simulated</Badge>}
                           </div>
                           <p className="text-sm text-muted-foreground">{app.platform} · {app.followers} followers · {app.category}</p>
@@ -1567,6 +1589,109 @@ const BrandDashboard = () => {
             )}
           </div>
         )}
+
+        {/* Inline creator detail from applications */}
+        {tab === "applications" && appCreatorDetail && (() => {
+          const cr = allCreators.find((c) => c.name === appCreatorDetail);
+          const creatorApps = applications.filter((a) => a.creator === appCreatorDetail);
+          if (!cr) {
+            // Simulated creator - show basic info from application
+            const app = applications.find((a) => a.creator === appCreatorDetail);
+            if (!app) return null;
+            return (
+              <div className="max-w-2xl space-y-6">
+                <button onClick={() => setAppCreatorDetail(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to applications</button>
+                <div className={sectionCardClass + " space-y-4"}>
+                  <div className="flex items-center gap-4">
+                    <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-3xl">{app.creator[0]}</div>
+                    <div>
+                      <h1 className="font-display text-2xl font-bold text-foreground">{app.creator}</h1>
+                      <p className="text-muted-foreground">{app.category} · {app.platform} · {app.followers} followers</p>
+                      {app.isSimulated && <Badge variant="secondary" className="text-xs mt-1">Simulated</Badge>}
+                    </div>
+                  </div>
+                  {app.address && <p className="text-sm text-muted-foreground"><MapPin className="w-3 h-3 inline mr-1" />{app.address}</p>}
+                  {app.email && <p className="text-sm text-muted-foreground">📧 {app.email}</p>}
+                  <p className="text-sm text-foreground">Applied to: {app.campaignName}</p>
+                  <Badge variant={app.status === "accepted" ? "default" : app.status === "denied" ? "secondary" : "outline"}>{app.status}</Badge>
+                </div>
+              </div>
+            );
+          }
+          const relation = getCreatorRelation(cr.name);
+          const isInvited = invitedCreators.some((ic) => ic.name === cr.name);
+          const creatorCampaigns = campaigns.filter((c) => c.activeCreators.some((ac) => ac.name === cr.name));
+          return (
+            <div className="max-w-2xl space-y-6">
+              <button onClick={() => setAppCreatorDetail(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to applications</button>
+              <div className={sectionCardClass + " space-y-6"}>
+                <div className="flex items-center gap-4">
+                  <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-3xl">{cr.name[0]}</div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h1 className="font-display text-2xl font-bold text-foreground">{cr.name}</h1>
+                      <Badge className="bg-success/10 text-primary border-0">{cr.match}% match</Badge>
+                      {relation === "active" && <Badge className="bg-primary/10 text-primary border-0">Works with you</Badge>}
+                    </div>
+                    <p className="text-muted-foreground">{cr.category} · {cr.country}</p>
+                  </div>
+                </div>
+                <p className="text-sm text-foreground">{cr.bio}</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Total Followers</p><p className="font-semibold text-foreground">{(cr.totalFollowers / 1000).toFixed(0)}K</p></div>
+                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Revenue Earned</p><p className="font-semibold text-primary">${cr.revenue.toLocaleString()}</p></div>
+                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Total Sales</p><p className="font-semibold text-foreground">{cr.sales}</p></div>
+                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Total Clicks</p><p className="font-semibold text-foreground">{cr.clicks.toLocaleString()}</p></div>
+                </div>
+                <div>
+                  <h3 className="font-display font-semibold text-foreground mb-2">Platforms</h3>
+                  <div className="flex flex-wrap gap-3">
+                    {cr.platforms.map((p, i) => (
+                      <div key={i} className="p-3 rounded-xl bg-muted/50 dark-green-outline">
+                        <p className="text-xs text-muted-foreground">{p.name}</p>
+                        <p className="font-semibold text-foreground">{p.followers}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {cr.portfolio.length > 0 && (
+                  <div>
+                    <h3 className="font-display font-semibold text-foreground mb-2">Portfolio</h3>
+                    <div className="space-y-2">
+                      {cr.portfolio.map((item, i) => (
+                        <div key={i} className="p-3 rounded-xl border border-border dark-green-outline">
+                          <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">{item.url}</a>
+                          {item.description && <p className="text-xs text-muted-foreground mt-1">{item.description}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {creatorApps.length > 0 && (
+                  <div>
+                    <h3 className="font-display font-semibold text-foreground mb-2">Applications</h3>
+                    {creatorApps.map((app) => (
+                      <div key={app.id} className="p-3 rounded-xl border border-border flex items-center justify-between dark-green-outline mb-2">
+                        <div><p className="font-semibold text-foreground text-sm">{app.campaignName}</p></div>
+                        <Badge variant={app.status === "accepted" ? "default" : app.status === "denied" ? "secondary" : "outline"}>{app.status}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex gap-3">
+                  {isInvited ? (
+                    <Button variant="secondary" disabled><Check className="w-4 h-4 mr-1" /> Invited</Button>
+                  ) : (
+                    <Button variant="hero" onClick={() => handleInviteCreator(cr.name)}><Send className="w-4 h-4 mr-1" /> Invite to Campaign</Button>
+                  )}
+                  <Button variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => setShowBlockConfirm(cr.name)}>
+                    <Ban className="w-4 h-4 mr-1" /> Block
+                  </Button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {tab === "creators" && !selectedCreatorDetail && (
           <div className="space-y-6">
@@ -1851,6 +1976,7 @@ const BrandDashboard = () => {
                             value={shippingDeliveryDate}
                             onChange={(e) => setShippingDeliveryDate(e.target.value)}
                             className="w-40"
+                            min={todayStr}
                           />
                           <Button variant="hero" size="sm" onClick={() => {
                             setShippedProducts((prev) => prev.map((s) =>
@@ -1906,7 +2032,42 @@ const BrandDashboard = () => {
               {analyticsDetail === "campaigns" && "Campaign Details"}
               {analyticsDetail === "creators" && "Creator Details"}
             </h1>
+
+            {/* Graph for this metric */}
+            {analyticsDetail !== "campaigns" && (
+              <div className={sectionCardClass + " space-y-4"}>
+                <h2 className="font-display text-lg font-semibold text-foreground">
+                  {analyticsDetail === "revenue" ? "Revenue" : analyticsDetail === "spent" ? "Spending" : "Creators"} Over Time
+                </h2>
+                {campaigns.length === 0 ? (
+                  <div className="h-48 rounded-xl bg-muted/30 flex items-center justify-center border border-border dark-green-outline">
+                    <p className="text-sm text-muted-foreground">Launch campaigns to see analytics data</p>
+                  </div>
+                ) : (
+                  <div className="h-48 rounded-xl bg-muted/30 border border-border dark-green-outline p-4 flex items-end gap-1">
+                    {["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"].map((month, i) => {
+                      const val = analyticsDetail === "spent"
+                        ? campaigns.reduce((s, c) => s + c.activeCreators.reduce((ss, cr) => ss + cr.earnings, 0), 0) * (0.3 + Math.random() * 0.7) / 6
+                        : analyticsDetail === "creators"
+                        ? campaigns.reduce((s, c) => s + c.activeCreators.length, 0) * (0.3 + Math.random() * 0.7) / 6
+                        : 0;
+                      const maxVal = Math.max(val * 2, 1);
+                      return (
+                        <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                          <div className="flex gap-0.5 items-end h-32 w-full justify-center">
+                            <div className="flex-1 bg-primary/70 rounded-t" style={{ height: `${Math.max((val / maxVal) * 100, 8)}%` }} />
+                          </div>
+                          <span className="text-xs text-muted-foreground">{month}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className={sectionCardClass}>
+              <h2 className="font-display text-lg font-semibold text-foreground mb-4">By Campaign</h2>
               {campaigns.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">No data yet. Launch campaigns to see analytics.</p>
               ) : (
