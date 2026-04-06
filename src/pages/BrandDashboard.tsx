@@ -195,14 +195,33 @@ const BrandDashboard = () => {
         return c.status === "active" ? "active" : "past";
       }
     }
+    // Also check accepted applications
+    if (applications.some((a) => a.creator === creatorName && a.status === "accepted")) {
+      return "active";
+    }
     return null;
+  };
+
+  // Build a combined list of creators for "my creators" including accepted applicants
+  const getMyCreators = () => {
+    const myCreatorNames = new Set<string>();
+    for (const c of campaigns) {
+      for (const cr of c.activeCreators) {
+        myCreatorNames.add(cr.name);
+      }
+    }
+    // Also add accepted applications
+    for (const a of applications) {
+      if (a.status === "accepted") myCreatorNames.add(a.creator);
+    }
+    return myCreatorNames;
   };
 
   const filteredCreators = allCreators.filter((cr) => {
     if (blockedCreators.includes(cr.name)) return false;
     if (creatorListTab === "my") {
-      const relation = getCreatorRelation(cr.name);
-      if (relation !== "active") return false;
+      const myNames = getMyCreators();
+      if (!myNames.has(cr.name)) return false;
     }
     if (creatorSearch && !cr.name.toLowerCase().includes(creatorSearch.toLowerCase())) return false;
     if (creatorFilterPlatform.length > 0 && !creatorFilterPlatform.includes(cr.platform)) return false;
