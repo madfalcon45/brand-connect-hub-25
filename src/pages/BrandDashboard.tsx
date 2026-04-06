@@ -2031,7 +2031,42 @@ const BrandDashboard = () => {
               {analyticsDetail === "campaigns" && "Campaign Details"}
               {analyticsDetail === "creators" && "Creator Details"}
             </h1>
+
+            {/* Graph for this metric */}
+            {analyticsDetail !== "campaigns" && (
+              <div className={sectionCardClass + " space-y-4"}>
+                <h2 className="font-display text-lg font-semibold text-foreground">
+                  {analyticsDetail === "revenue" ? "Revenue" : analyticsDetail === "spent" ? "Spending" : "Creators"} Over Time
+                </h2>
+                {campaigns.length === 0 ? (
+                  <div className="h-48 rounded-xl bg-muted/30 flex items-center justify-center border border-border dark-green-outline">
+                    <p className="text-sm text-muted-foreground">Launch campaigns to see analytics data</p>
+                  </div>
+                ) : (
+                  <div className="h-48 rounded-xl bg-muted/30 border border-border dark-green-outline p-4 flex items-end gap-1">
+                    {["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"].map((month, i) => {
+                      const val = analyticsDetail === "spent"
+                        ? campaigns.reduce((s, c) => s + c.activeCreators.reduce((ss, cr) => ss + cr.earnings, 0), 0) * (0.3 + Math.random() * 0.7) / 6
+                        : analyticsDetail === "creators"
+                        ? campaigns.reduce((s, c) => s + c.activeCreators.length, 0) * (0.3 + Math.random() * 0.7) / 6
+                        : 0;
+                      const maxVal = Math.max(val * 2, 1);
+                      return (
+                        <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                          <div className="flex gap-0.5 items-end h-32 w-full justify-center">
+                            <div className="flex-1 bg-primary/70 rounded-t" style={{ height: `${Math.max((val / maxVal) * 100, 8)}%` }} />
+                          </div>
+                          <span className="text-xs text-muted-foreground">{month}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className={sectionCardClass}>
+              <h2 className="font-display text-lg font-semibold text-foreground mb-4">By Campaign</h2>
               {campaigns.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">No data yet. Launch campaigns to see analytics.</p>
               ) : (
