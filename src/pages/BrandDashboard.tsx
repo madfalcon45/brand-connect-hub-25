@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import {
   BarChart3, Plus, Users, DollarSign, Settings, Eye, LogOut, Search,
   Bell, Lock, TrendingUp, Filter, Send, Check, X as XIcon,
   Package, Link2, MoreHorizontal, Star, Info, Moon, Sun, User, KeyRound, Crown, CreditCard,
-  ChevronLeft, Image as ImageIcon, AlertCircle, UserX, Ban, Upload, MapPin, Truck, Calendar, ExternalLink
+  ChevronLeft, ChevronRight, Image as ImageIcon, AlertCircle, UserX, Ban, Upload, MapPin, Truck, Calendar, ExternalLink
 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
@@ -153,6 +153,41 @@ const BrandDashboard = () => {
   // Creator view
   const [creatorViewSelected, setCreatorViewSelected] = useState<number | null>(null);
 
+  // Creator View (campaign browsing preview) — mirrors CreatorDashboard feed UI
+  type CreatorViewCampaign = {
+    id: string;
+    brand: string;
+    product: string;
+    category: string;
+    platform: string;
+    adPlatforms: string[];
+    payMethod: string;
+    signOnPay: number;
+    isPro: boolean;
+    topPick: boolean;
+    requireApply: boolean;
+    needsProduct: boolean;
+    productType: "physical" | "digital";
+    websiteUrl?: string;
+    productLink?: string;
+    description?: string;
+    notes?: string;
+    productImageCount: number;
+    isYours?: boolean;
+  };
+
+  const [cvFilterCategory, setCvFilterCategory] = useState("");
+  const [cvFilterPayType, setCvFilterPayType] = useState("");
+  const [cvFilterPlatform, setCvFilterPlatform] = useState<string[]>([]);
+  const [cvFilterSignOnPay, setCvFilterSignOnPay] = useState(false);
+  const [cvFilterMinSignOnPay, setCvFilterMinSignOnPay] = useState("");
+  const [cvShowFilters, setCvShowFilters] = useState(false);
+  const [cvSearchQuery, setCvSearchQuery] = useState("");
+  const [cvSelectedCampaignId, setCvSelectedCampaignId] = useState<string | null>(null);
+  const [cvViewingBrand, setCvViewingBrand] = useState<string | null>(null);
+  const [cvLightbox, setCvLightbox] = useState<{ campaignId: string; imageIndex: number } | null>(null);
+  const cvTouchStartX = useRef<number | null>(null);
+
   const [settingsName, setSettingsName] = useState(() => localStorage.getItem("allcall_brand_name") || "");
   const [settingsEmail, setSettingsEmail] = useState(() => localStorage.getItem("allcall_email") || "");
   const [settingsCountry, setSettingsCountry] = useState(() => localStorage.getItem("allcall_country") || "");
@@ -218,15 +253,56 @@ const BrandDashboard = () => {
     return myCreatorNames;
   };
 
-  const filteredCreators = allCreators.filter((cr) => {
+  const parseFollowersNum = (followers: string) => {
+    const v = (followers || "").trim().toUpperCase();
+    const m = v.match(/^(\d+(\.\d+)?)([KM])?$/);
+    if (!m) return 0;
+    const n = Number(m[1]);
+    const unit = m[3];
+    if (unit === "M") return Math.round(n * 1_000_000);
+    if (unit === "K") return Math.round(n * 1_000);
+    return Math.round(n);
+  };
+
+  const myCreatorNames = creatorListTab === "my" ? getMyCreators() : new Set<string>();
+  const extraMyCreators = creatorListTab !== "my"
+    ? []
+    : Array.from(myCreatorNames)
+      .filter((name) => !allCreators.some((c) => c.name === name))
+      .map((name) => {
+        const app = applications.find((a) => a.creator === name) || null;
+        const active = campaigns.flatMap((c) => c.activeCreators).find((ac) => ac.name === name) || null;
+        const platform = app?.platform || active?.platform || "TikTok";
+        const followers = app?.followers || active?.followers || "0";
+        const category = app?.category || "General";
+        return {
+          name,
+          platform,
+          followers,
+          followersNum: parseFollowersNum(followers),
+          category,
+          match: undefined as number | undefined,
+          bio: app?.isSimulated ? "Simulated creator profile." : "Creator profile.",
+          portfolio: [] as { url: string; description: string }[],
+          platforms: [{ name: platform, followers }],
+          totalFollowers: parseFollowersNum(followers),
+          revenue: 0,
+          campaigns: 0,
+          sales: 0,
+          clicks: 0,
+          country: app?.isSimulated ? "Simulated" : "—",
+        };
+      });
+
+  const creatorPool = creatorListTab === "my"
+    ? [...allCreators.filter((c) => myCreatorNames.has(c.name)), ...extraMyCreators]
+    : allCreators;
+
+  const filteredCreators = creatorPool.filter((cr) => {
     if (blockedCreators.includes(cr.name)) return false;
-    if (creatorListTab === "my") {
-      const myNames = getMyCreators();
-      if (!myNames.has(cr.name)) return false;
-    }
     if (creatorSearch && !cr.name.toLowerCase().includes(creatorSearch.toLowerCase())) return false;
     if (creatorFilterPlatform.length > 0 && !creatorFilterPlatform.includes(cr.platform)) return false;
-    if (creatorFilterMinFollowers > 0 && cr.followersNum < creatorFilterMinFollowers) return false;
+    if (creatorFilterMinFollowers > 0 && (cr.followersNum || 0) < creatorFilterMinFollowers) return false;
     if (creatorFilterCountry && cr.country !== creatorFilterCountry) return false;
     return true;
   });
@@ -460,11 +536,61 @@ const BrandDashboard = () => {
   };
 
   const handleInviteCreator = (name: string) => {
-    if (campaigns.filter((c) => c.status === "active").length === 0) {
-      setInviteCampaignSelect(name);
-      return;
-    }
+    setInviteCampaignId(null);
     setInviteCampaignSelect(name);
+  };
+
+  const getInviteEligibleCampaigns = (creatorName: string) => {
+    const activeCampaigns = campaigns.filter((c) => c.status === "active");
+    return activeCampaigns.filter((c) => {
+      const alreadyInCampaign = c.activeCreators.some((cr) => cr.name === creatorName);
+      if (alreadyInCampaign) return false;
+      const alreadyInvitedToCampaign = invitedCreators.some((ic) => ic.name === creatorName && ic.campaignId === c.id);
+      if (alreadyInvitedToCampaign) return false;
+      return true;
+    });
+  };
+
+  const buildSampleSimulatedProfile = (name: string, primaryPlatform: string, followers: string, category: string) => {
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "");
+    const first = name.split(" ")[0] || name;
+    const platformKey = primaryPlatform.toLowerCase().includes("insta")
+      ? "instagram"
+      : primaryPlatform.toLowerCase().includes("you")
+        ? "youtube"
+        : primaryPlatform.toLowerCase().includes("twitter") || primaryPlatform.toLowerCase().includes("x")
+          ? "x"
+          : "tiktok";
+
+    const bio = `Hi! I’m ${first} — a ${category.toLowerCase()} creator focused on clean storytelling, product-first demos, and high-retention hooks. I love working with brands that care about quality and long-term partnerships.`;
+
+    const socials = [
+      { platform: primaryPlatform, url: `https://${platformKey}.com/@${slug || "creator"}` },
+      { platform: "Instagram", url: `https://instagram.com/${slug || "creator"}` },
+      { platform: "YouTube", url: `https://youtube.com/@${slug || "creator"}` },
+    ];
+
+    const portfolio = [
+      { url: `https://${platformKey}.com/@${slug || "creator"}/video1`, description: "UGC product demo with hook + benefits + CTA" },
+      { url: `https://${platformKey}.com/@${slug || "creator"}/video2`, description: "Before/after style content with results + testimonial" },
+      { url: `https://${platformKey}.com/@${slug || "creator"}/video3`, description: "Unboxing + first impressions + brand mentions" },
+    ];
+
+    return {
+      bio,
+      socials,
+      portfolio,
+      platforms: [
+        { name: primaryPlatform, followers },
+        { name: "Instagram", followers: "18K" },
+        { name: "YouTube", followers: "7K" },
+      ],
+      stats: {
+        avgViews: "22K",
+        avgEngagement: "4.8%",
+        turnaround: "3-5 days",
+      },
+    };
   };
 
   const confirmInvite = () => {
@@ -651,6 +777,27 @@ const BrandDashboard = () => {
     else document.documentElement.classList.remove("dark");
   }, [darkMode]);
 
+  useEffect(() => {
+    if (!cvLightbox) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setCvLightbox(null);
+        return;
+      }
+      setCvLightbox((prev) => {
+        if (!prev) return null;
+        const camp = creatorViewCampaigns.find((x) => x.id === prev.campaignId);
+        const n = Math.max(1, camp?.productImageCount ?? 1);
+        if (e.key === "ArrowRight") return { ...prev, imageIndex: (prev.imageIndex + 1) % n };
+        if (e.key === "ArrowLeft") return { ...prev, imageIndex: (prev.imageIndex - 1 + n) % n };
+        return prev;
+      });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cvLightbox]);
+
   const activeCampaigns = campaigns.filter((c) => c.status === "active");
   const todayStr = new Date().toISOString().split("T")[0];
 
@@ -665,6 +812,107 @@ const BrandDashboard = () => {
 
   const cardClass = "p-5 rounded-2xl bg-card border border-border shadow-card dark-green-outline";
   const sectionCardClass = "bg-card border border-border rounded-2xl p-6 shadow-card dark-green-outline";
+
+  const creatorViewCampaigns: CreatorViewCampaign[] = [
+    ...activeCampaigns.map((c) => ({
+      id: `brand:${c.id}`,
+      brand: settingsName || "Your Brand",
+      product: c.name,
+      category: c.category,
+      platform: (c.adPlatforms?.[0] || c.platforms?.[0] || "TikTok"),
+      adPlatforms: (c.adPlatforms && c.adPlatforms.length > 0 ? c.adPlatforms : (c.platforms || ["TikTok"])),
+      payMethod: c.payMethod,
+      signOnPay: c.signOnPay || 0,
+      isPro: plan === "pro",
+      topPick: true,
+      requireApply: !!c.requireApply,
+      needsProduct: !!c.paidProduct,
+      productType: (c.productType || "physical"),
+      websiteUrl: c.websiteUrl,
+      productLink: c.link,
+      description: c.description,
+      notes: c.notes,
+      productImageCount: Math.max(1, (c.images?.length || 0) || 2),
+      isYours: true,
+    })),
+    ...exampleCreatorCampaigns.map((c, i) => ({
+      id: `example:${i}`,
+      brand: c.brand,
+      product: c.name,
+      category: c.category,
+      platform: (c.adPlatforms?.[0] || "TikTok"),
+      adPlatforms: c.adPlatforms || ["TikTok"],
+      payMethod: c.payMethod,
+      signOnPay: c.signOnPay || 0,
+      isPro: !!c.isPro,
+      topPick: false,
+      requireApply: !!c.requireApply,
+      needsProduct: true,
+      productType: "physical" as const,
+      websiteUrl: c.websiteUrl,
+      productLink: "",
+      description: c.description,
+      notes: c.notes,
+      productImageCount: 3,
+    })),
+  ];
+
+  const cvGetPayType = (method: string) => {
+    if (method.startsWith("Hybrid")) return "hybrid";
+    if (method.startsWith("Commission")) return "commission";
+    return "flat";
+  };
+
+  const cvFilteredCampaigns = creatorViewCampaigns.filter((c) => {
+    if (cvFilterCategory && c.category !== cvFilterCategory) return false;
+    if (cvSearchQuery && !c.product.toLowerCase().includes(cvSearchQuery.toLowerCase()) && !c.brand.toLowerCase().includes(cvSearchQuery.toLowerCase())) return false;
+    if (cvFilterPayType && cvGetPayType(c.payMethod) !== cvFilterPayType) return false;
+    if (cvFilterPlatform.length > 0 && !cvFilterPlatform.includes(c.platform) && !(c.adPlatforms && c.adPlatforms.some((p: string) => cvFilterPlatform.includes(p)))) return false;
+    if (cvFilterSignOnPay && c.signOnPay <= 0) return false;
+    if (cvFilterSignOnPay && cvFilterMinSignOnPay && c.signOnPay < Number(cvFilterMinSignOnPay)) return false;
+    if (cvViewingBrand && c.brand !== cvViewingBrand) return false;
+    return true;
+  }).sort((a, b) => {
+    if (a.topPick !== b.topPick) return a.topPick ? -1 : 1;
+    if (a.isPro !== b.isPro) return a.isPro ? -1 : 1;
+    return 0;
+  });
+
+  const CvBrandLogoMark = ({ brand, size = "w-14 h-14", textClassName = "text-lg" }: { brand: string; size?: string; textClassName?: string }) => (
+    <div className={`${size} rounded-xl bg-primary/10 border border-border flex items-center justify-center shrink-0`} aria-hidden>
+      <span className={`font-display font-bold text-primary select-none ${textClassName}`}>{brand[0]?.toUpperCase() ?? "?"}</span>
+    </div>
+  );
+
+  const CvCampaignProductGallery = ({ campaign }: { campaign: CreatorViewCampaign }) => {
+    const n = Math.max(1, campaign.productImageCount);
+    return (
+      <div className="rounded-2xl border border-border bg-muted/20 p-4 space-y-3">
+        <div>
+          <h2 className="font-display text-lg font-semibold text-foreground">Product</h2>
+          <p className="text-xs text-muted-foreground mt-1">
+            Sample placeholders show where brand photos will appear. Tap an image to enlarge; swipe or use arrows to browse.
+          </p>
+        </div>
+        <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory">
+          {Array.from({ length: n }, (_, i) => (
+            <button
+              type="button"
+              key={i}
+              onClick={(e) => {
+                e.stopPropagation();
+                setCvLightbox({ campaignId: campaign.id, imageIndex: i });
+              }}
+              className="snap-start shrink-0 w-[min(100%,280px)] aspect-[4/3] rounded-xl border-2 border-dashed border-border bg-background flex flex-col items-center justify-center gap-2 hover:bg-muted/50 transition-colors"
+            >
+              <ImageIcon className="w-8 h-8 text-muted-foreground" />
+              <span className="text-sm font-medium text-muted-foreground">Image {i + 1}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   const availableFollowerPlatforms = campaignForm.adPlatforms.length > 0 ? [...campaignForm.adPlatforms, "total"] : ["TikTok", "Instagram", "YouTube", "Twitter/X", "Facebook", "total"];
 
@@ -716,7 +964,7 @@ const BrandDashboard = () => {
   );
 
   return (
-    <div className="min-h-screen flex" style={{ background: darkMode ? 'hsl(150, 10%, 5%)' : 'linear-gradient(180deg, hsl(148, 50%, 88%) 0%, hsl(145, 35%, 92%) 40%, hsl(140, 20%, 96%) 100%)', backgroundAttachment: 'fixed' }}>
+    <div className="min-h-screen flex" style={{ background: darkMode ? 'hsl(150, 10%, 5%)' : 'linear-gradient(180deg, hsl(148, 50%, 84%) 0%, hsl(145, 35%, 88%) 40%, hsl(140, 20%, 93%) 100%)', backgroundAttachment: 'fixed' }}>
       {/* Delete confirmation */}
       {showDeleteConfirm !== null && (
         <div className="fixed inset-0 z-50 bg-foreground/50 flex items-center justify-center" onClick={() => setShowDeleteConfirm(null)}>
@@ -764,29 +1012,51 @@ const BrandDashboard = () => {
         <div className="fixed inset-0 z-50 bg-foreground/50 flex items-center justify-center" onClick={() => { setInviteCampaignSelect(null); setInviteCampaignId(null); }}>
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-card border border-border rounded-2xl p-8 max-w-sm shadow-lg" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-display text-xl font-bold text-foreground mb-2">Invite {inviteCampaignSelect}</h3>
-            {activeCampaigns.length === 0 ? (
-              <div className="text-center space-y-4">
-                <p className="text-sm text-muted-foreground">Create a campaign to start inviting creators.</p>
-                <Button variant="hero" onClick={() => { setInviteCampaignSelect(null); setTab("new-campaign"); }}>
-                  <Plus className="w-4 h-4 mr-1" /> Create Campaign
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">Choose which campaign to invite them to:</p>
-                <div className="space-y-2">
-                  {activeCampaigns.map((c) => (
-                    <button key={c.id} onClick={() => setInviteCampaignId(c.id)} className={`w-full text-left p-3 rounded-xl border text-sm transition-colors ${inviteCampaignId === c.id ? "border-primary bg-primary/5 text-primary" : "border-border text-foreground hover:bg-accent"}`}>
-                      {c.name}
-                    </button>
-                  ))}
+            {(() => {
+              const eligible = getInviteEligibleCampaigns(inviteCampaignSelect);
+              const activeCampaigns = campaigns.filter((c) => c.status === "active");
+              if (activeCampaigns.length === 0) {
+                return (
+                  <div className="text-center space-y-4">
+                    <p className="text-sm text-muted-foreground">Create a campaign to start inviting creators.</p>
+                    <Button variant="hero" onClick={() => { setInviteCampaignSelect(null); setTab("new-campaign"); }}>
+                      <Plus className="w-4 h-4 mr-1" /> Create Campaign
+                    </Button>
+                  </div>
+                );
+              }
+              if (eligible.length === 0) {
+                return (
+                  <div className="text-center space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      They’re already part of all your active campaigns (or already invited). Create another campaign to invite them again.
+                    </p>
+                    <div className="flex gap-3 justify-center">
+                      <Button variant="outline" onClick={() => { setInviteCampaignSelect(null); setInviteCampaignId(null); }}>Close</Button>
+                      <Button variant="hero" onClick={() => { setInviteCampaignSelect(null); setTab("new-campaign"); }}>
+                        <Plus className="w-4 h-4 mr-1" /> Create Campaign
+                      </Button>
+                    </div>
+                  </div>
+                );
+              }
+              return (
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">Choose which campaign to invite them to:</p>
+                  <div className="space-y-2">
+                    {eligible.map((c) => (
+                      <button key={c.id} onClick={() => setInviteCampaignId(c.id)} className={`w-full text-left p-3 rounded-xl border text-sm transition-colors ${inviteCampaignId === c.id ? "border-primary bg-primary/5 text-primary" : "border-border text-foreground hover:bg-accent"}`}>
+                        {c.name}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-3">
+                    <Button variant="hero" disabled={!inviteCampaignId} onClick={confirmInvite}>Send Invite</Button>
+                    <Button variant="outline" onClick={() => { setInviteCampaignSelect(null); setInviteCampaignId(null); }}>Cancel</Button>
+                  </div>
                 </div>
-                <div className="flex gap-3">
-                  <Button variant="hero" disabled={!inviteCampaignId} onClick={confirmInvite}>Send Invite</Button>
-                  <Button variant="outline" onClick={() => { setInviteCampaignSelect(null); setInviteCampaignId(null); }}>Cancel</Button>
-                </div>
-              </div>
-            )}
+              );
+            })()}
           </motion.div>
         </div>
       )}
@@ -1507,7 +1777,7 @@ const BrandDashboard = () => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               className="max-w-md w-full text-center space-y-6 p-10 rounded-3xl"
-              style={{ background: 'linear-gradient(135deg, hsl(152, 69%, 41%) 0%, hsl(160, 60%, 35%) 30%, hsl(145, 40%, 50%) 60%, hsl(140, 30%, 85%) 100%)' }}
+              style={{ background: 'linear-gradient(135deg, hsl(150, 50%, 72%) 0%, hsl(152, 45%, 66%) 35%, hsl(154, 42%, 60%) 70%, hsl(145, 38%, 74%) 100%)' }}
             >
               <div className="w-20 h-20 rounded-full bg-primary-foreground/20 flex items-center justify-center mx-auto">
                 <Check className="w-10 h-10 text-primary-foreground" />
@@ -1679,11 +1949,16 @@ const BrandDashboard = () => {
                   </div>
                 )}
                 <div className="flex gap-3">
-                  {isInvited ? (
-                    <Button variant="secondary" disabled><Check className="w-4 h-4 mr-1" /> Invited</Button>
-                  ) : (
-                    <Button variant="hero" onClick={() => handleInviteCreator(cr.name)}><Send className="w-4 h-4 mr-1" /> Invite to Campaign</Button>
-                  )}
+                  {(() => {
+                    const eligibleInviteCampaigns = getInviteEligibleCampaigns(cr.name);
+                    const canInvite = campaigns.filter((c) => c.status === "active").length === 0 || eligibleInviteCampaigns.length > 0;
+                    const inviteLabel = relation === "active" ? "Invite to another campaign" : "Invite to Campaign";
+                    return canInvite ? (
+                      <Button variant="hero" onClick={() => handleInviteCreator(cr.name)}>
+                        <Send className="w-4 h-4 mr-1" /> {inviteLabel}
+                      </Button>
+                    ) : null;
+                  })()}
                   <Button variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => setShowBlockConfirm(cr.name)}>
                     <Ban className="w-4 h-4 mr-1" /> Block
                   </Button>
@@ -1772,7 +2047,7 @@ const BrandDashboard = () => {
                   const camp = campaigns.find((c) => c.id === ic.campaignId);
                   if (!cr) return null;
                   return (
-                    <div key={i} className={cardClass + " flex items-center justify-between"}>
+                    <div key={i} className={cardClass + " flex items-center justify-between cursor-pointer hover:shadow-card-hover transition-shadow"} onClick={() => setSelectedCreatorDetail(cr.name)}>
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">{cr.name[0]}</div>
                         <div>
@@ -1791,7 +2066,9 @@ const BrandDashboard = () => {
               {creatorListTab === "my" && <h3 className="font-display text-lg font-semibold text-foreground">Active</h3>}
               {filteredCreators.map((cr) => {
                 const relation = getCreatorRelation(cr.name);
-                const isInvited = invitedCreators.some((ic) => ic.name === cr.name);
+                const eligibleInviteCampaigns = getInviteEligibleCampaigns(cr.name);
+                const canInvite = campaigns.filter((c) => c.status === "active").length === 0 || eligibleInviteCampaigns.length > 0;
+                const inviteLabel = relation === "active" ? "Invite to another campaign" : "Invite to Campaign";
                 return (
                   <div key={cr.name} className={cardClass + " flex items-center justify-between cursor-pointer hover:shadow-card-hover transition-shadow"} onClick={() => setSelectedCreatorDetail(cr.name)}>
                     <div className="flex items-center gap-4">
@@ -1799,21 +2076,19 @@ const BrandDashboard = () => {
                       <div>
                         <div className="flex items-center gap-2">
                           <p className="font-semibold text-foreground">{cr.name}</p>
-                          <Badge className="bg-success/10 text-primary border-0 text-xs">{cr.match}% match</Badge>
+                          {typeof (cr as any).match === "number" && (
+                            <Badge className="bg-success/10 text-primary border-0 text-xs">{(cr as any).match}% match</Badge>
+                          )}
                           {relation === "active" && <Badge className="bg-primary/10 text-primary border-0 text-xs">Works with you</Badge>}
                           {relation === "past" && <Badge variant="secondary" className="text-xs">Worked with you</Badge>}
                         </div>
-                        <p className="text-sm text-muted-foreground">{cr.platform} · {cr.followers} · {cr.category} · {cr.country}</p>
+                        <p className="text-sm text-muted-foreground">{cr.platform} · {cr.followers} · {cr.category} · {(cr as any).country || "—"}</p>
                       </div>
                     </div>
                     <div onClick={(e) => e.stopPropagation()}>
-                      {isInvited ? (
-                        <Button variant="secondary" size="sm" disabled>
-                          <Check className="w-4 h-4 mr-1" /> Invited
-                        </Button>
-                      ) : (
+                      {canInvite && (
                         <Button variant="hero" size="sm" onClick={() => handleInviteCreator(cr.name)}>
-                          <Send className="w-4 h-4 mr-1" /> Invite
+                          <Send className="w-4 h-4 mr-1" /> {inviteLabel}
                         </Button>
                       )}
                     </div>
@@ -1830,7 +2105,123 @@ const BrandDashboard = () => {
         {/* Creator detail view */}
         {tab === "creators" && selectedCreatorDetail && (() => {
           const cr = allCreators.find((c) => c.name === selectedCreatorDetail);
-          if (!cr) return null;
+          if (!cr) {
+            const app = applications.find((a) => a.creator === selectedCreatorDetail) || null;
+            const active = campaigns.flatMap((c) => c.activeCreators).find((ac) => ac.name === selectedCreatorDetail) || null;
+            if (!app && !active) return null;
+            const name = selectedCreatorDetail;
+            const platform = app?.platform || active?.platform || "TikTok";
+            const followers = app?.followers || active?.followers || "0";
+            const category = app?.category || "General";
+            const sample = buildSampleSimulatedProfile(name, platform, followers, category);
+            const relation = getCreatorRelation(name);
+            const creatorCampaigns = campaigns.filter((c) => c.activeCreators.some((ac) => ac.name === name));
+            const creatorApps = applications.filter((a) => a.creator === name);
+            return (
+              <div className="max-w-2xl space-y-6">
+                <button onClick={() => setSelectedCreatorDetail(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to creators</button>
+                <div className={sectionCardClass + " space-y-6"}>
+                  <div className="flex items-center gap-4">
+                    <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-3xl">{name[0]}</div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h1 className="font-display text-2xl font-bold text-foreground">{name}</h1>
+                        {relation === "active" && <Badge className="bg-primary/10 text-primary border-0">Works with you</Badge>}
+                        {relation === "past" && <Badge variant="secondary">Worked with you</Badge>}
+                        {app?.isSimulated && <Badge variant="secondary">Simulated</Badge>}
+                      </div>
+                      <p className="text-muted-foreground">{category} · {platform} · {followers} followers</p>
+                    </div>
+                  </div>
+
+                  <p className="text-sm text-foreground">{sample.bio}</p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="p-4 rounded-xl bg-muted/50 dark-green-outline">
+                      <p className="text-xs text-muted-foreground">Avg Views</p>
+                      <p className="font-semibold text-foreground">{sample.stats.avgViews}</p>
+                    </div>
+                    <div className="p-4 rounded-xl bg-muted/50 dark-green-outline">
+                      <p className="text-xs text-muted-foreground">Avg Engagement</p>
+                      <p className="font-semibold text-foreground">{sample.stats.avgEngagement}</p>
+                    </div>
+                    <div className="p-4 rounded-xl bg-muted/50 dark-green-outline">
+                      <p className="text-xs text-muted-foreground">Turnaround</p>
+                      <p className="font-semibold text-foreground">{sample.stats.turnaround}</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="font-display font-semibold text-foreground mb-2">Social Links</h3>
+                    <div className="space-y-2">
+                      {sample.socials.map((s: any, i: number) => (
+                        <div key={i} className="p-3 rounded-xl border border-border dark-green-outline flex items-center justify-between">
+                          <div>
+                            <p className="text-xs text-muted-foreground">{s.platform}</p>
+                            <a href={s.url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">{s.url}</a>
+                          </div>
+                          <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="font-display font-semibold text-foreground mb-2">Portfolio</h3>
+                    <div className="space-y-2">
+                      {sample.portfolio.map((item: any, i: number) => (
+                        <div key={i} className="p-3 rounded-xl border border-border dark-green-outline">
+                          <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">{item.url}</a>
+                          {item.description && <p className="text-xs text-muted-foreground mt-1">{item.description}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="font-display font-semibold text-foreground mb-2">Platforms</h3>
+                    <div className="flex flex-wrap gap-3">
+                      {sample.platforms.map((p: any, i: number) => (
+                        <div key={i} className="p-3 rounded-xl bg-muted/50 dark-green-outline">
+                          <p className="text-xs text-muted-foreground">{p.name}</p>
+                          <p className="font-semibold text-foreground">{p.followers}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {creatorCampaigns.length > 0 && (
+                    <div>
+                      <h3 className="font-display font-semibold text-foreground mb-2">Your Campaigns Together</h3>
+                      <div className="space-y-2">
+                        {creatorCampaigns.map((c) => (
+                          <div key={c.id} className="p-3 rounded-xl border border-border flex items-center justify-between dark-green-outline">
+                            <div>
+                              <p className="font-semibold text-foreground text-sm">{c.name}</p>
+                              <p className="text-xs text-muted-foreground">{c.category} · {c.status}</p>
+                            </div>
+                            <Badge className="bg-primary/10 text-primary border-0 text-xs">Active</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {creatorApps.length > 0 && (
+                    <div>
+                      <h3 className="font-display font-semibold text-foreground mb-2">Applications</h3>
+                      {creatorApps.map((a) => (
+                        <div key={a.id} className="p-3 rounded-xl border border-border flex items-center justify-between dark-green-outline mb-2">
+                          <div><p className="font-semibold text-foreground text-sm">{a.campaignName}</p></div>
+                          <Badge variant={a.status === "accepted" ? "default" : a.status === "denied" ? "secondary" : "outline"}>{a.status}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          }
           const relation = getCreatorRelation(cr.name);
           const isInvited = invitedCreators.some((ic) => ic.name === cr.name);
           const creatorCampaigns = campaigns.filter((c) => c.activeCreators.some((ac) => ac.name === cr.name));
@@ -1903,11 +2294,16 @@ const BrandDashboard = () => {
                 )}
 
                 <div className="flex gap-3">
-                  {isInvited ? (
-                    <Button variant="secondary" disabled><Check className="w-4 h-4 mr-1" /> Invited</Button>
-                  ) : (
-                    <Button variant="hero" onClick={() => handleInviteCreator(cr.name)}><Send className="w-4 h-4 mr-1" /> Invite to Campaign</Button>
-                  )}
+                  {(() => {
+                    const eligibleInviteCampaigns = getInviteEligibleCampaigns(cr.name);
+                    const canInvite = campaigns.filter((c) => c.status === "active").length === 0 || eligibleInviteCampaigns.length > 0;
+                    const inviteLabel = relation === "active" ? "Invite to another campaign" : "Invite to Campaign";
+                    return canInvite ? (
+                      <Button variant="hero" onClick={() => handleInviteCreator(cr.name)}>
+                        <Send className="w-4 h-4 mr-1" /> {inviteLabel}
+                      </Button>
+                    ) : null;
+                  })()}
                   <Button variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => setShowBlockConfirm(cr.name)}>
                     <Ban className="w-4 h-4 mr-1" /> Block
                   </Button>
@@ -2112,142 +2508,241 @@ const BrandDashboard = () => {
           </div>
         )}
 
-        {tab === "creator-view" && !creatorViewSelected && (
+        {tab === "creator-view" && (
           <div className="space-y-6">
+            {/* Lightbox */}
+            {cvLightbox && (() => {
+              const c = creatorViewCampaigns.find((x) => x.id === cvLightbox.campaignId);
+              if (!c) return null;
+              const n = Math.max(1, c.productImageCount);
+              const idx = ((cvLightbox.imageIndex % n) + n) % n;
+              const go = (dir: -1 | 1) => setCvLightbox({ campaignId: c.id, imageIndex: (idx + dir + n) % n });
+              return (
+                <div className="fixed inset-0 z-[60] bg-black/75 flex items-center justify-center p-4" role="dialog" aria-modal="true" onClick={() => setCvLightbox(null)}>
+                  <div className="relative w-full max-w-3xl" onClick={(e) => e.stopPropagation()}>
+                    <button type="button" className="absolute -top-1 right-0 z-10 rounded-lg p-2 text-white/90 hover:bg-white/10 hover:text-white" onClick={() => setCvLightbox(null)} aria-label="Close">
+                      <XIcon className="w-5 h-5" />
+                    </button>
+                    <div
+                      className="relative rounded-2xl bg-muted aspect-[4/3] max-h-[min(70vh,520px)] flex flex-col items-center justify-center border border-white/10 touch-pan-y"
+                      onTouchStart={(e) => { cvTouchStartX.current = e.touches[0].clientX; }}
+                      onTouchEnd={(e) => {
+                        if (cvTouchStartX.current == null) return;
+                        const dx = e.changedTouches[0].clientX - cvTouchStartX.current;
+                        cvTouchStartX.current = null;
+                        if (dx > 50) go(-1);
+                        else if (dx < -50) go(1);
+                      }}
+                    >
+                      <ImageIcon className="w-16 h-16 text-muted-foreground mb-4" />
+                      <p className="text-2xl font-display font-semibold text-muted-foreground">Image {idx + 1}</p>
+                      <p className="text-sm text-muted-foreground mt-2 text-center px-6\">{c.product}</p>
+                      {n > 1 && (
+                        <>
+                          <button type="button" className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-background/95 border border-border shadow-sm flex items-center justify-center hover:bg-accent" onClick={() => go(-1)} aria-label="Previous image">
+                            <ChevronLeft className="w-5 h-5" />
+                          </button>
+                          <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-background/95 border border-border shadow-sm flex items-center justify-center hover:bg-accent" onClick={() => go(1)} aria-label="Next image">
+                            <ChevronRight className="w-5 h-5" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                    {n > 1 && <p className="text-center text-white/85 text-sm mt-3">{idx + 1} / {n}</p>}
+                  </div>
+                </div>
+              );
+            })()}
+
             <h1 className="font-display text-3xl font-bold text-foreground">Creator View Preview</h1>
-            <p className="text-sm text-muted-foreground">See your campaigns from a creator's perspective, alongside other example campaigns.</p>
+            <p className="text-sm text-muted-foreground">This mirrors the creator campaign browsing experience. Apply/Join buttons are disabled in preview mode.</p>
 
-            <div className="space-y-4">
-              {campaigns.filter((c) => c.status === "active").map((c) => (
-                <div key={c.id} className={cardClass + " cursor-pointer hover:shadow-card-hover transition-shadow"} onClick={() => setCreatorViewSelected(c.id)}>
-                  <div className="flex items-center gap-4 mb-3">
-                    {c.images && c.images.length > 0 ? (
-                      <div className="w-14 h-14 rounded-xl overflow-hidden border border-border"><img src={c.images[0]} alt="" className="w-full h-full object-cover" /></div>
-                    ) : brandLogo ? (
-                      <div className="w-14 h-14 rounded-xl overflow-hidden border border-border"><img src={brandLogo} alt="" className="w-full h-full object-cover" /></div>
-                    ) : (
-                      <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-xl">{(settingsName || "B")[0]}</div>
+            {/* If viewing a brand page */}
+            {!cvSelectedCampaignId && cvViewingBrand && (() => {
+              const brandCampaigns = creatorViewCampaigns.filter((c) => c.brand === cvViewingBrand);
+              return (
+                <div className="space-y-6">
+                  <button onClick={() => setCvViewingBrand(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to campaigns</button>
+                  <div className={sectionCardClass + " space-y-4"}>
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-2xl">{cvViewingBrand[0]}</div>
+                      <div>
+                        <h1 className="font-display text-2xl font-bold text-foreground">{cvViewingBrand}</h1>
+                        <p className="text-sm text-muted-foreground">{brandCampaigns.length} campaigns</p>
+                      </div>
+                    </div>
+                    {brandCampaigns[0]?.websiteUrl && (
+                      <a href={brandCampaigns[0].websiteUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1"><ExternalLink className="w-3 h-3" /> {brandCampaigns[0].websiteUrl}</a>
                     )}
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-display font-bold text-foreground">{c.name}</h3>
-                        <Badge className="bg-accent text-accent-foreground border-0 text-xs">Your Campaign</Badge>
-                        {plan === "pro" && (
-                          <Tooltip>
-                            <TooltipTrigger><Crown className="w-5 h-5 text-warning" /></TooltipTrigger>
-                            <TooltipContent>Top Brand — Pro subscription with extended creator attribution windows and priority placement</TooltipContent>
-                          </Tooltip>
-                        )}
-                        {c.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0 text-xs">${c.signOnPay} sign-on pay</Badge>}
-                      </div>
-                      <p className="text-sm text-muted-foreground">{settingsName || "Your Brand"} · {c.category} · {c.payMethod}</p>
-                      {c.description && <p className="text-xs text-muted-foreground mt-1">{c.description}</p>}
-                    </div>
                   </div>
-                  <Button variant="hero" size="sm" disabled>{c.requireApply ? "Apply" : "Join Campaign"}</Button>
+                  <h2 className="font-display text-xl font-semibold text-foreground">Campaigns by {cvViewingBrand}</h2>
+                  <div className="space-y-3">
+                    {brandCampaigns.map((c) => (
+                      <div key={c.id} className={cardClass + " hover:shadow-card-hover transition-shadow cursor-pointer"} onClick={() => setCvSelectedCampaignId(c.id)}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <CvBrandLogoMark brand={c.brand} />
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="font-display font-bold text-foreground">{c.product}</h3>
+                                {c.isYours && <Badge className="bg-accent text-accent-foreground border-0 text-xs">Your Campaign</Badge>}
+                                {c.isPro && (
+                                  <Tooltip>
+                                    <TooltipTrigger><Crown className="w-5 h-5 text-warning" /></TooltipTrigger>
+                                    <TooltipContent>Top Brand — Pro subscription with extended creator attribution windows and priority placement</TooltipContent>
+                                  </Tooltip>
+                                )}
+                                {c.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0 text-xs">${c.signOnPay} sign-on pay</Badge>}
+                              </div>
+                              <p className="text-sm text-muted-foreground">{c.category} · {c.adPlatforms.length > 1 ? "Multiple Platforms" : c.platform}</p>
+                              <p className="text-xs text-muted-foreground mt-1">{c.payMethod}</p>
+                            </div>
+                          </div>
+                          <Button variant="hero" size="sm" disabled>{c.requireApply ? "Apply" : "Join Campaign"}</Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
+              );
+            })()}
 
-              {exampleCreatorCampaigns.map((c, i) => (
-                <div key={i} className={cardClass + " cursor-pointer hover:shadow-card-hover transition-shadow"} onClick={() => setCreatorViewSelected(-(i + 1))}>
-                  <div className="flex items-center gap-4 mb-3">
-                    <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-xl">{c.brand[0]}</div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-display font-bold text-foreground">{c.name}</h3>
-                        {c.isPro && (
-                          <Tooltip>
-                            <TooltipTrigger><Crown className="w-5 h-5 text-warning" /></TooltipTrigger>
-                            <TooltipContent>Top Brand — Pro subscription with extended creator attribution windows and priority placement</TooltipContent>
-                          </Tooltip>
-                        )}
-                        {c.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0 text-xs">${c.signOnPay} sign-on pay</Badge>}
-                      </div>
-                      <p className="text-sm text-muted-foreground">{c.brand} · {c.category} · {c.adPlatforms.length > 1 ? "Multiple Platforms" : c.adPlatforms[0] || "All"}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{c.payMethod}</p>
-                      {c.description && <p className="text-xs text-muted-foreground mt-1">{c.description}</p>}
-                    </div>
+            {/* Campaign list */}
+            {!cvSelectedCampaignId && !cvViewingBrand && (
+              <div className="space-y-6">
+                <div className="flex gap-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input placeholder="Search campaigns..." className="pl-10" value={cvSearchQuery} onChange={(e) => setCvSearchQuery(e.target.value)} />
                   </div>
-                  <Button variant="hero" size="sm" disabled>{c.requireApply ? "Apply" : "Join Campaign"}</Button>
+                  <Button variant="outline" onClick={() => setCvShowFilters(!cvShowFilters)}>
+                    <Filter className="w-4 h-4 mr-2" /> Filters
+                  </Button>
                 </div>
-              ))}
-            </div>
+
+                {cvShowFilters && (
+                  <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className={sectionCardClass + " space-y-4"}>
+                    <h3 className="text-sm font-semibold text-foreground">Filter Campaigns</h3>
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-2">Category</p>
+                      <select className="rounded-lg border border-input bg-background px-3 py-2 text-sm w-full" value={cvFilterCategory} onChange={(e) => setCvFilterCategory(e.target.value)}>
+                        <option value="">All Categories</option>
+                        {campaignCategories.filter((x) => x !== "All").map((c) => <option key={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-2">Pay Type</p>
+                      <div className="flex flex-wrap gap-2">
+                        {[{ key: "commission", label: "Commission" }, { key: "flat", label: "Flat Rate" }, { key: "hybrid", label: "Hybrid" }].map((p) => (
+                          <button key={p.key} onClick={() => setCvFilterPayType(cvFilterPayType === p.key ? "" : p.key)} className={`px-3 py-1.5 rounded-full text-xs border ${cvFilterPayType === p.key ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}>{p.label}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-2">Platform</p>
+                      <div className="flex flex-wrap gap-2">
+                        {["TikTok", "Instagram", "YouTube"].map((p) => (
+                          <button key={p} onClick={() => setCvFilterPlatform((prev) => prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p])} className={`px-3 py-1.5 rounded-full text-xs border ${cvFilterPlatform.includes(p) ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}>{p}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="flex items-center gap-3">
+                        <input type="checkbox" checked={cvFilterSignOnPay} onChange={(e) => { setCvFilterSignOnPay(e.target.checked); if (!e.target.checked) setCvFilterMinSignOnPay(""); }} className="rounded" />
+                        <span className="text-sm text-foreground">Sign-on pay only</span>
+                      </label>
+                      {cvFilterSignOnPay && (
+                        <div className="flex items-center gap-2 mt-2 ml-7">
+                          <span className="text-sm text-muted-foreground">Min $</span>
+                          <Input value={cvFilterMinSignOnPay} onChange={(e) => setCvFilterMinSignOnPay(e.target.value)} placeholder="0" type="number" className="w-24" />
+                        </div>
+                      )}
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => { setCvFilterCategory(""); setCvFilterPayType(""); setCvFilterPlatform([]); setCvFilterSignOnPay(false); setCvFilterMinSignOnPay(""); }}>Clear Filters</Button>
+                  </motion.div>
+                )}
+
+                <div className="space-y-4">
+                  {cvFilteredCampaigns.map((c) => (
+                    <div key={c.id} className={cardClass + " hover:shadow-card-hover transition-shadow cursor-pointer"} onClick={() => setCvSelectedCampaignId(c.id)}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <CvBrandLogoMark brand={c.brand} />
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-display font-bold text-foreground">{c.product}</h3>
+                              {c.isYours && <Badge className="bg-accent text-accent-foreground border-0 text-xs">Your Campaign</Badge>}
+                              {c.isPro && (
+                                <Tooltip>
+                                  <TooltipTrigger><Crown className="w-5 h-5 text-warning" /></TooltipTrigger>
+                                  <TooltipContent>Top Brand — Pro subscription with extended creator attribution windows and priority placement</TooltipContent>
+                                </Tooltip>
+                              )}
+                              {c.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0 text-xs">${c.signOnPay} sign-on pay</Badge>}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              <button className="text-primary hover:underline" onClick={(e) => { e.stopPropagation(); setCvViewingBrand(c.brand); }}>{c.brand}</button>
+                              {" · "}{c.category} · {c.adPlatforms.length > 1 ? "Multiple Platforms" : c.platform}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">{c.payMethod}</p>
+                          </div>
+                        </div>
+                        <Button variant="hero" size="sm" disabled>{c.requireApply ? "Apply" : "Join Campaign"}</Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Campaign detail */}
+            {cvSelectedCampaignId && (() => {
+              const c = creatorViewCampaigns.find((x) => x.id === cvSelectedCampaignId);
+              if (!c) return null;
+              return (
+                <div className="max-w-2xl space-y-6">
+                  <button onClick={() => setCvSelectedCampaignId(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to campaigns</button>
+                  <div className={sectionCardClass + " space-y-6"}>
+                    <div className="flex items-center gap-4">
+                      <CvBrandLogoMark brand={c.brand} size="w-20 h-20" textClassName="text-2xl" />
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h1 className="font-display text-2xl font-bold text-foreground">{c.product}</h1>
+                          {c.isPro && (
+                            <Tooltip>
+                              <TooltipTrigger><Crown className="w-5 h-5 text-warning" /></TooltipTrigger>
+                              <TooltipContent>Top Brand — Pro subscription with extended creator attribution windows and priority placement</TooltipContent>
+                            </Tooltip>
+                          )}
+                        </div>
+                        <p className="text-muted-foreground">
+                          <button className="text-primary hover:underline" onClick={() => { setCvSelectedCampaignId(null); setCvViewingBrand(c.brand); }}>{c.brand}</button>
+                          {" · "}{c.category}
+                        </p>
+                      </div>
+                    </div>
+
+                    <CvCampaignProductGallery campaign={c} />
+
+                    {c.description && <p className="text-sm text-foreground">{c.description}</p>}
+                    {c.notes && <p className="text-sm text-muted-foreground italic">📌 {c.notes}</p>}
+                    {c.productLink && <a href={c.productLink} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1"><ExternalLink className="w-3 h-3" /> Product Link</a>}
+                    {c.websiteUrl && <a href={c.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1"><ExternalLink className="w-3 h-3" /> Brand Website</a>}
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Platform</p><p className="font-semibold text-foreground">{c.adPlatforms.join(", ")}</p></div>
+                      <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Payment</p><p className="font-semibold text-foreground">{c.payMethod}</p></div>
+                      {c.signOnPay > 0 && <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Sign-On Pay</p><p className="font-semibold text-primary">${c.signOnPay}</p></div>}
+                      <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Product Required</p><p className="font-semibold text-foreground">{c.needsProduct ? "Yes" : "No"}</p></div>
+                    </div>
+
+                    <Button variant="hero" size="lg" className="w-full rounded-xl" disabled>{c.requireApply ? "Apply to Campaign" : "Join Campaign"}</Button>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
-
-        {/* Creator view campaign detail */}
-        {tab === "creator-view" && creatorViewSelected !== null && (() => {
-          if (creatorViewSelected > 0) {
-            // Brand's own campaign
-            const c = campaigns.find((x) => x.id === creatorViewSelected);
-            if (!c) return null;
-            return (
-              <div className="max-w-2xl space-y-6">
-                <button onClick={() => setCreatorViewSelected(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back</button>
-                <div className={sectionCardClass + " space-y-6"}>
-                  <div className="flex items-center gap-4">
-                    {brandLogo ? (
-                      <div className="w-16 h-16 rounded-xl overflow-hidden border border-border"><img src={brandLogo} alt="" className="w-full h-full object-cover" /></div>
-                    ) : (
-                      <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-2xl">{(settingsName || "B")[0]}</div>
-                    )}
-                    <div>
-                      <h1 className="font-display text-2xl font-bold text-foreground">{c.name}</h1>
-                      <p className="text-muted-foreground">{settingsName || "Your Brand"} · {c.category}</p>
-                    </div>
-                  </div>
-                  {c.description && <p className="text-sm text-foreground">{c.description}</p>}
-                  {c.notes && <p className="text-sm text-muted-foreground italic">📌 {c.notes}</p>}
-                  {c.link && <a href={c.link} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1"><ExternalLink className="w-3 h-3" /> Product Link</a>}
-                  {c.websiteUrl && <a href={c.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1"><ExternalLink className="w-3 h-3" /> Brand Website</a>}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Platform</p><p className="font-semibold text-foreground">{c.platforms?.join(", ") || "All"}</p></div>
-                    <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Payment</p><p className="font-semibold text-foreground">{c.payMethod}</p></div>
-                    {c.signOnPay > 0 && <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Sign-On Pay</p><p className="font-semibold text-primary">${c.signOnPay}</p></div>}
-                  </div>
-                  {c.images && c.images.length > 0 && (
-                    <div className="flex gap-3">
-                      {c.images.map((img, i) => (
-                        <div key={i} className="w-24 h-24 rounded-xl border border-border overflow-hidden">
-                          <img src={img} alt="" className="w-full h-full object-cover" />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <Button variant="hero" size="lg" className="w-full rounded-xl" disabled>{c.requireApply ? "Apply" : "Join Campaign"}</Button>
-                </div>
-              </div>
-            );
-          } else {
-            // Example campaign
-            const idx = Math.abs(creatorViewSelected) - 1;
-            const c = exampleCreatorCampaigns[idx];
-            if (!c) return null;
-            return (
-              <div className="max-w-2xl space-y-6">
-                <button onClick={() => setCreatorViewSelected(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back</button>
-                <div className={sectionCardClass + " space-y-6"}>
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-2xl">{c.brand[0]}</div>
-                    <div>
-                      <h1 className="font-display text-2xl font-bold text-foreground">{c.name}</h1>
-                      <p className="text-muted-foreground">{c.brand} · {c.category}</p>
-                    </div>
-                  </div>
-                  {c.description && <p className="text-sm text-foreground">{c.description}</p>}
-                  {c.notes && <p className="text-sm text-muted-foreground italic">📌 {c.notes}</p>}
-                  {c.websiteUrl && <a href={c.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1"><ExternalLink className="w-3 h-3" /> Brand Website</a>}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Platform</p><p className="font-semibold text-foreground">{c.adPlatforms.length > 1 ? c.adPlatforms.join(", ") : c.adPlatforms[0] || "All"}</p></div>
-                    <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Payment</p><p className="font-semibold text-foreground">{c.payMethod}</p></div>
-                    {c.signOnPay > 0 && <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Sign-On Pay</p><p className="font-semibold text-primary">${c.signOnPay}</p></div>}
-                  </div>
-                  <Button variant="hero" size="lg" className="w-full rounded-xl" disabled>{c.requireApply ? "Apply" : "Join Campaign"}</Button>
-                </div>
-              </div>
-            );
-          }
-        })()}
 
         {tab === "settings" && (
           <div className="space-y-6 max-w-lg">
@@ -2318,8 +2813,8 @@ const BrandDashboard = () => {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-foreground">Dark Mode</span>
-                <button onClick={() => setDarkMode(!darkMode)} className={`w-12 h-6 rounded-full transition-colors ${darkMode ? "bg-primary" : "bg-muted"} relative`}>
-                  <div className={`w-5 h-5 rounded-full bg-primary-foreground absolute top-0.5 transition-transform ${darkMode ? "translate-x-6" : "translate-x-0.5"}`} />
+                <button onClick={() => setDarkMode(!darkMode)} className={`w-12 h-6 rounded-full transition-colors border shadow-sm relative ${darkMode ? "bg-primary border-primary/40" : "bg-muted/60 border-border"}`}>
+                  <div className={`w-5 h-5 rounded-full bg-primary-foreground absolute top-0.5 transition-transform border ${darkMode ? "translate-x-6 border-primary/40" : "translate-x-0.5 border-border"}`} />
                 </button>
               </div>
             </div>

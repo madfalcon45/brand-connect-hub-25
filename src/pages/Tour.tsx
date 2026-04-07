@@ -39,7 +39,7 @@ const steps = [
 ];
 
 const Tour = () => (
-  <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, hsl(152, 69%, 41%) 0%, hsl(160, 60%, 35%) 30%, hsl(145, 40%, 50%) 60%, hsl(140, 30%, 85%) 100%)' }}>
+  <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, hsl(152, 69%, 37%) 0%, hsl(160, 60%, 31%) 30%, hsl(145, 40%, 46%) 60%, hsl(140, 30%, 80%) 100%)' }}>
     <Navbar />
     <section className="pt-32 pb-24">
       <div className="container max-w-4xl">

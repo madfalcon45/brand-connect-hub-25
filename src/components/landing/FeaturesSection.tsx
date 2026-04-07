@@ -36,7 +36,7 @@ const features = [
 
 const FeaturesSection = () => {
   return (
-    <section className="py-24 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, hsl(152, 69%, 41%) 0%, hsl(160, 60%, 35%) 30%, hsl(145, 40%, 50%) 60%, hsl(140, 30%, 85%) 100%)' }}>
+    <section className="py-24 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, hsl(152, 69%, 37%) 0%, hsl(160, 60%, 31%) 30%, hsl(145, 40%, 46%) 60%, hsl(140, 30%, 80%) 100%)' }}>
       <div className="absolute top-0 right-0 w-96 h-96 bg-primary-foreground/10 rounded-full blur-3xl" />
       <div className="absolute bottom-0 left-0 w-72 h-72 bg-primary-foreground/5 rounded-full blur-3xl" />
       <div className="container relative z-10">

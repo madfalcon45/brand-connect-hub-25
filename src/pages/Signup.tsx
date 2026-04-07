@@ -122,6 +122,13 @@ const Signup = () => {
       if (role === "creator") {
         localStorage.setItem("allcall_creator_name", formData.name);
         if (formData.address.trim()) localStorage.setItem("allcall_creator_address", formData.address);
+        // Persist signup socials so they show in the creator portfolio.
+        const normalizedSocials = socials
+          .map((s) => ({ platform: s.platform.trim(), url: s.url.trim() }))
+          .filter((s) => s.platform && s.url);
+        if (normalizedSocials.length > 0) {
+          localStorage.setItem("allcall_creator_social_links", JSON.stringify(normalizedSocials));
+        }
       }
       localStorage.setItem("allcall_email", formData.email);
       localStorage.setItem("allcall_country", formData.country);
@@ -130,7 +137,7 @@ const Signup = () => {
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden" style={{ background: 'linear-gradient(135deg, hsl(152, 69%, 41%) 0%, hsl(160, 60%, 35%) 30%, hsl(145, 40%, 50%) 60%, hsl(140, 30%, 85%) 100%)' }}>
+    <div className="min-h-screen relative overflow-hidden" style={{ background: 'linear-gradient(135deg, hsl(152, 69%, 37%) 0%, hsl(160, 60%, 31%) 30%, hsl(145, 40%, 46%) 60%, hsl(140, 30%, 80%) 100%)' }}>
       <div className="absolute inset-0 bg-gradient-brand opacity-15" />
       <div className="absolute top-0 right-0 w-[700px] h-[700px] bg-primary-foreground/10 rounded-full blur-3xl -translate-y-1/3 translate-x-1/4" />
       <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-primary-foreground/5 rounded-full blur-3xl translate-y-1/3 -translate-x-1/4" />

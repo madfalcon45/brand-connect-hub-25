@@ -26,7 +26,7 @@ const proExtras = [
 const Pricing = () => (
   <div className="min-h-screen bg-background">
     <Navbar />
-    <section className="pt-32 pb-24" style={{ background: 'linear-gradient(180deg, hsl(145, 30%, 95%) 0%, hsl(150, 20%, 98%) 50%, hsl(0, 0%, 100%) 100%)' }}>
+    <section className="pt-32 pb-24" style={{ background: 'linear-gradient(180deg, hsl(145, 30%, 92%) 0%, hsl(150, 20%, 95%) 50%, hsl(0, 0%, 98%) 100%)' }}>
       <div className="container">
         <div className="text-center mb-16">
           <h1 className="font-display text-4xl md:text-6xl font-bold mb-4 text-foreground">Choose Your Plan</h1>
