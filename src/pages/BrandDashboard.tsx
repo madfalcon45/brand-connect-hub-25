@@ -22,6 +22,16 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const brandCategories = [
   "Fashion & Apparel", "Beauty & Skincare", "Health & Wellness", "Food & Beverage",
@@ -144,7 +154,9 @@ const BrandDashboard = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
   const [selectedCreatorDetail, setSelectedCreatorDetail] = useState<string | null>(null);
   const [creatorListTab, setCreatorListTab] = useState<"all" | "my" | "invited" | "applications">("all");
-  const [creatorDetailContext, setCreatorDetailContext] = useState<"creators-list" | "campaign" | null>(null);
+  const [creatorDetailContext, setCreatorDetailContext] = useState<"creators-list" | "campaign" | "standalone" | null>(null);
+  const [standaloneProfileReturnTab, setStandaloneProfileReturnTab] = useState<Tab | null>(null);
+  const [withdrawInviteConfirm, setWithdrawInviteConfirm] = useState<{ name: string; campaignId: number } | null>(null);
   const [attributionHistory, setAttributionHistory] = useState<AttributionEntry[]>([]);
   const [showCampaignAttributionHistory, setShowCampaignAttributionHistory] = useState(false);
   const [campaignGalleryLightbox, setCampaignGalleryLightbox] = useState<{ campaignId: number; imageIndex: number } | null>(null);
@@ -181,7 +193,6 @@ const BrandDashboard = () => {
   const [showFakeCreator, setShowFakeCreator] = useState(false);
   const [fakeCreatorCampaignId, setFakeCreatorCampaignId] = useState<number | null>(null);
   const [showProductApproval, setShowProductApproval] = useState<Application | null>(null);
-  const [appCreatorDetail, setAppCreatorDetail] = useState<string | null>(null);
 
   // Shipping
   const [shippedProducts, setShippedProducts] = useState<ShippedProduct[]>([]);
@@ -215,6 +226,7 @@ const BrandDashboard = () => {
     productImageCount: number;
     isYours?: boolean;
     imageSrcs?: string[];
+    activeCreatorsOnCampaign?: number;
   };
 
   const [cvFilterCategory, setCvFilterCategory] = useState("");
@@ -643,8 +655,37 @@ const BrandDashboard = () => {
     setTimeout(() => setInviteConfirmation(null), 3000);
   };
 
-  const handleWithdrawInvite = (name: string, campaignId: number) => {
+  const commitWithdrawInvite = () => {
+    if (!withdrawInviteConfirm) return;
+    const { name, campaignId } = withdrawInviteConfirm;
     setInvitedCreators((prev) => prev.filter((ic) => !(ic.name === name && ic.campaignId === campaignId)));
+    setWithdrawInviteConfirm(null);
+  };
+
+  const renderInvitedCreatorsSectionForProfile = (creatorName: string) => {
+    const rows = invitedCreators.filter((ic) => ic.name === creatorName);
+    if (rows.length === 0) return null;
+    return (
+      <div>
+        <h3 className="font-display font-semibold text-foreground mb-2">Invited creators</h3>
+        <p className="text-xs text-muted-foreground mb-3">Campaigns you invited this creator to (same as your Invited Creators tab).</p>
+        <div className="space-y-2">
+          {rows.map((ic) => {
+            const camp = campaigns.find((x) => x.id === ic.campaignId);
+            const joined = camp?.activeCreators.some((a) => a.name === creatorName);
+            return (
+              <div key={`${ic.name}-${ic.campaignId}`} className="p-3 rounded-xl border border-border dark-green-outline flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-foreground text-sm">{camp?.name || "Campaign"}</p>
+                  <p className="text-xs text-muted-foreground">{joined ? "Joined this campaign" : "Waiting to join"}</p>
+                </div>
+                <Badge variant={joined ? "default" : "outline"}>{joined ? "Active" : "Pending"}</Badge>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
   };
 
   const handleRemoveCreatorFromCampaign = (creatorName: string, campaignId: number) => {
@@ -768,7 +809,7 @@ const BrandDashboard = () => {
     setAnalyticsDetail(null);
     setSubscriptionDetail(false);
     setCreatorViewSelected(null);
-    setAppCreatorDetail(null);
+    setStandaloneProfileReturnTab(null);
     setCreatorDetailContext(null);
     setShowCampaignAttributionHistory(false);
   };
@@ -843,6 +884,17 @@ const BrandDashboard = () => {
   const closeCreatorProfile = () => {
     setSelectedCreatorDetail(null);
     setCreatorDetailContext(null);
+    if (standaloneProfileReturnTab !== null) {
+      setTab(standaloneProfileReturnTab);
+      setStandaloneProfileReturnTab(null);
+    }
+  };
+
+  const openCreatorStandaloneProfile = (creatorName: string, returnTab: Tab) => {
+    setSelectedCreatorDetail(creatorName);
+    setCreatorDetailContext("standalone");
+    setStandaloneProfileReturnTab(returnTab);
+    setTab("creators");
   };
 
   useEffect(() => {
@@ -1155,6 +1207,7 @@ const BrandDashboard = () => {
         productImageCount: imgCount,
         isYours: true,
         imageSrcs: hasImages ? c.images : undefined,
+        activeCreatorsOnCampaign: c.activeCreators.length,
       };
     }),
     ...exampleCreatorCampaigns.map((c, i) => ({
@@ -1176,6 +1229,7 @@ const BrandDashboard = () => {
       description: c.description,
       notes: c.notes,
       productImageCount: 3,
+      activeCreatorsOnCampaign: [14, 9, 22, 6, 18, 11, 20, 5, 12, 15, 8][i % 11],
     })),
   ];
 
@@ -1359,6 +1413,28 @@ const BrandDashboard = () => {
         </div>
       )}
 
+      <AlertDialog open={!!withdrawInviteConfirm} onOpenChange={(open) => !open && setWithdrawInviteConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground">Withdraw invitation?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {withdrawInviteConfirm && (
+                <>
+                  Remove the invitation for <span className="font-medium text-foreground">{withdrawInviteConfirm.name}</span> to join{" "}
+                  <span className="font-medium text-foreground">{campaigns.find((c) => c.id === withdrawInviteConfirm.campaignId)?.name || "this campaign"}</span>? They will no longer see this invite.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={commitWithdrawInvite}>
+              Withdraw invite
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {inviteCampaignSelect && (
         <div className="fixed inset-0 z-50 bg-foreground/50 flex items-center justify-center" onClick={() => { setInviteCampaignSelect(null); setInviteCampaignId(null); }}>
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-card border border-border rounded-2xl p-8 max-w-sm shadow-lg" onClick={(e) => e.stopPropagation()}>
@@ -1445,8 +1521,23 @@ const BrandDashboard = () => {
             <DialogContent className="max-w-sm">
               <DialogHeader>
                 <DialogTitle className="text-foreground">Confirm Product Delivery</DialogTitle>
-                <DialogDescription>
-                  Do you want to send <span className="font-semibold">{campaign?.name || "product"}</span> to <span className="font-semibold">{showProductApproval.creator}</span> at {campaign?.productType === "physical" ? showProductApproval.address || "their address" : showProductApproval.email || "their email"}?
+                <DialogDescription asChild>
+                  <div className="text-sm text-muted-foreground">
+                    Do you want to send <span className="font-semibold text-foreground">{campaign?.name || "product"}</span> to{" "}
+                    <button
+                      type="button"
+                      className="font-semibold text-primary hover:underline"
+                      onClick={() => {
+                        const c = showProductApproval?.creator;
+                        if (!c) return;
+                        setShowProductApproval(null);
+                        openCreatorStandaloneProfile(c, tab);
+                      }}
+                    >
+                      {showProductApproval.creator}
+                    </button>
+                    {" "}at {campaign?.productType === "physical" ? showProductApproval.address || "their address" : showProductApproval.email || "their email"}?
+                  </div>
                 </DialogDescription>
               </DialogHeader>
               <div className="flex gap-3 justify-end">
@@ -1466,10 +1557,44 @@ const BrandDashboard = () => {
               <Truck className="w-5 h-5 text-primary" />
               {showMarkShipped && campaigns.find((c) => c.id === showMarkShipped.campaignId)?.productType === "digital" ? "Mark as Emailed" : "Mark as Shipped"}
             </DialogTitle>
-            <DialogDescription>
-              {showMarkShipped && campaigns.find((c) => c.id === showMarkShipped.campaignId)?.productType === "digital"
-                ? `Confirm you've emailed the product to ${showMarkShipped?.creator}.`
-                : `Confirm you've shipped the product to ${showMarkShipped?.creator}.`}
+            <DialogDescription asChild>
+              <div className="text-sm text-muted-foreground">
+                {showMarkShipped && campaigns.find((c) => c.id === showMarkShipped.campaignId)?.productType === "digital" ? (
+                  <>
+                    Confirm you&apos;ve emailed the product to{" "}
+                    <button
+                      type="button"
+                      className="font-semibold text-primary hover:underline"
+                      onClick={() => {
+                        const c = showMarkShipped?.creator;
+                        if (!c) return;
+                        setShowMarkShipped(null);
+                        openCreatorStandaloneProfile(c, tab);
+                      }}
+                    >
+                      {showMarkShipped.creator}
+                    </button>
+                    .
+                  </>
+                ) : (
+                  <>
+                    Confirm you&apos;ve shipped the product to{" "}
+                    <button
+                      type="button"
+                      className="font-semibold text-primary hover:underline"
+                      onClick={() => {
+                        const c = showMarkShipped?.creator;
+                        if (!c) return;
+                        setShowMarkShipped(null);
+                        openCreatorStandaloneProfile(c, tab);
+                      }}
+                    >
+                      {showMarkShipped?.creator}
+                    </button>
+                    .
+                  </>
+                )}
+              </div>
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -1506,7 +1631,16 @@ const BrandDashboard = () => {
               <ul className="space-y-2">
                 {rows.map((e) => (
                   <li key={e.id} className="rounded-xl border border-border p-3 text-sm dark-green-outline">
-                    <p className="font-medium text-foreground">{e.creatorName}</p>
+                    <button
+                      type="button"
+                      className="font-medium text-foreground hover:text-primary text-left"
+                      onClick={() => {
+                        setShowCampaignAttributionHistory(false);
+                        openCreatorStandaloneProfile(e.creatorName, tab);
+                      }}
+                    >
+                      {e.creatorName}
+                    </button>
                     <p className="text-muted-foreground text-xs mt-1">
                       {new Date(e.createdAt).toLocaleString()}
                       {" · "}
@@ -1725,7 +1859,7 @@ const BrandDashboard = () => {
         {(tab === "campaigns" || tab === "dashboard") && selectedCampaignId && (() => {
           const campaign = campaigns.find((c) => c.id === selectedCampaignId);
           if (!campaign) return null;
-          if (selectedCreatorDetail && creatorDetailContext === "campaign") return null;
+          if (selectedCreatorDetail && (creatorDetailContext === "campaign" || creatorDetailContext === "standalone")) return null;
           const galleryImages = campaign.images && campaign.images.length > 0 ? campaign.images : [];
           return (
             <div className="space-y-6">
@@ -1833,7 +1967,22 @@ const BrandDashboard = () => {
               <div className={sectionCardClass}>
                 <h2 className="font-display text-lg font-semibold text-foreground mb-4">Active Creators ({campaign.activeCreators.length})</h2>
                 {campaign.activeCreators.length === 0 ? (
-                  <p className="text-muted-foreground text-sm py-6 text-center">No creators yet.</p>
+                  <div className="py-6 text-center space-y-4">
+                    <p className="text-muted-foreground text-sm">No creators yet.</p>
+                    <Button
+                      variant="hero"
+                      onClick={() => {
+                        setSelectedCreatorDetail(null);
+                        setCreatorDetailContext(null);
+                        setStandaloneProfileReturnTab(null);
+                        setSelectedCampaignId(null);
+                        setCreatorListTab("all");
+                        setTab("creators");
+                      }}
+                    >
+                      <Send className="w-4 h-4 mr-2" /> Invite creators
+                    </Button>
+                  </div>
                 ) : (
                   <div className="space-y-3">
                     {campaign.activeCreators.map((cr, i) => (
@@ -2245,207 +2394,17 @@ const BrandDashboard = () => {
           </div>
         )}
 
-        {/* Inline creator detail from applications */}
-        {tab === "creators" && creatorListTab === "applications" && appCreatorDetail && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h1 className="font-display text-3xl font-bold text-foreground">Creators</h1>
-            </div>
-            <div className="flex gap-2 mb-4 flex-wrap">
-              <button type="button" onClick={() => { setCreatorListTab("all"); setAppCreatorDetail(null); }} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "all" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>All Creators</button>
-              <button type="button" onClick={() => { setCreatorListTab("my"); setAppCreatorDetail(null); }} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "my" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>My Creators</button>
-              <button type="button" onClick={() => { setCreatorListTab("invited"); setAppCreatorDetail(null); }} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "invited" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>Invited Creators</button>
-              <button type="button" onClick={() => { setCreatorListTab("applications"); setSelectedCreatorDetail(null); setCreatorDetailContext(null); }} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "applications" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>Applications</button>
-            </div>
-        {(() => {
-          const cr = allCreators.find((c) => c.name === appCreatorDetail);
-          const creatorApps = applications.filter((a) => a.creator === appCreatorDetail);
-          if (!cr) {
-            const app = applications.find((a) => a.creator === appCreatorDetail);
-            if (!app) return null;
-            const sample = buildSampleSimulatedProfile(app.creator, app.platform, app.followers, app.category);
-            const relation = getCreatorRelation(app.creator);
-            const creatorCampaigns = campaigns.filter((c) => c.activeCreators.some((ac) => ac.name === app.creator));
-            return (
-              <div className="max-w-2xl space-y-6">
-                <button type="button" onClick={() => setAppCreatorDetail(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to applications</button>
-                <div className={sectionCardClass + " space-y-6"}>
-                  <div className="flex items-center gap-4">
-                    <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-3xl">{app.creator[0]}</div>
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h1 className="font-display text-2xl font-bold text-foreground">{app.creator}</h1>
-                        {relation === "active" && <Badge className="bg-primary/10 text-primary border-0">Works with you</Badge>}
-                        {app.isSimulated && <Badge variant="secondary" className="text-xs">Simulated</Badge>}
-                      </div>
-                      <p className="text-muted-foreground">{app.category} · {app.platform} · {app.followers} followers</p>
-                    </div>
-                  </div>
-                  {app.address && <p className="text-sm text-muted-foreground"><MapPin className="w-3 h-3 inline mr-1" />{app.address}</p>}
-                  {app.email && <p className="text-sm text-muted-foreground">📧 {app.email}</p>}
-                  <p className="text-sm text-foreground">{sample.bio}</p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Avg Views</p><p className="font-semibold text-foreground">{sample.stats.avgViews}</p></div>
-                    <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Avg Engagement</p><p className="font-semibold text-foreground">{sample.stats.avgEngagement}</p></div>
-                    <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Turnaround</p><p className="font-semibold text-foreground">{sample.stats.turnaround}</p></div>
-                  </div>
-                  <div>
-                    <h3 className="font-display font-semibold text-foreground mb-2">Social Links</h3>
-                    <div className="space-y-2">
-                      {sample.socials.map((s, i) => (
-                        <div key={i} className="p-3 rounded-xl border border-border dark-green-outline flex items-center justify-between">
-                          <div>
-                            <p className="text-xs text-muted-foreground">{s.platform}</p>
-                            <a href={s.url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">{s.url}</a>
-                          </div>
-                          <ExternalLink className="w-4 h-4 text-muted-foreground" />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <h3 className="font-display font-semibold text-foreground mb-2">Portfolio</h3>
-                    <div className="space-y-2">
-                      {sample.portfolio.map((item, i) => (
-                        <div key={i} className="p-3 rounded-xl border border-border dark-green-outline">
-                          <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">{item.url}</a>
-                          {item.description && <p className="text-xs text-muted-foreground mt-1">{item.description}</p>}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <h3 className="font-display font-semibold text-foreground mb-2">Platforms</h3>
-                    <div className="flex flex-wrap gap-3">
-                      {sample.platforms.map((p, i) => (
-                        <div key={i} className="p-3 rounded-xl bg-muted/50 dark-green-outline">
-                          <p className="text-xs text-muted-foreground">{p.name}</p>
-                          <p className="font-semibold text-foreground">{p.followers}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  {creatorCampaigns.length > 0 && (
-                    <div>
-                      <h3 className="font-display font-semibold text-foreground mb-2">Your Campaigns Together</h3>
-                      <div className="space-y-2">
-                        {creatorCampaigns.map((c) => (
-                          <div key={c.id} className="p-3 rounded-xl border border-border flex items-center justify-between dark-green-outline">
-                            <div>
-                              <p className="font-semibold text-foreground text-sm">{c.name}</p>
-                              <p className="text-xs text-muted-foreground">{c.category} · {c.status}</p>
-                            </div>
-                            <Badge className="bg-primary/10 text-primary border-0 text-xs">Active</Badge>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <div>
-                    <h3 className="font-display font-semibold text-foreground mb-2">Applications to your campaigns</h3>
-                    {creatorApps.map((a) => (
-                      <div key={a.id} className="p-3 rounded-xl border border-border flex items-center justify-between dark-green-outline mb-2">
-                        <div><p className="font-semibold text-foreground text-sm">{a.campaignName}</p></div>
-                        <Badge variant={a.status === "accepted" ? "default" : a.status === "denied" ? "secondary" : "outline"}>{a.status}</Badge>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            );
-          }
-          const relation = getCreatorRelation(cr.name);
-          const creatorCampaigns = campaigns.filter((c) => c.activeCreators.some((ac) => ac.name === cr.name));
-          return (
-            <div className="max-w-2xl space-y-6">
-              <button type="button" onClick={() => setAppCreatorDetail(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to applications</button>
-              <div className={sectionCardClass + " space-y-6"}>
-                <div className="flex items-center gap-4">
-                  <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-3xl">{cr.name[0]}</div>
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h1 className="font-display text-2xl font-bold text-foreground">{cr.name}</h1>
-                      <Badge className="bg-success/10 text-primary border-0">{cr.match}% match</Badge>
-                      {relation === "active" && <Badge className="bg-primary/10 text-primary border-0">Works with you</Badge>}
-                    </div>
-                    <p className="text-muted-foreground">{cr.category} · {cr.country}</p>
-                  </div>
-                </div>
-                <p className="text-sm text-foreground">{cr.bio}</p>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Total Followers</p><p className="font-semibold text-foreground">{(cr.totalFollowers / 1000).toFixed(0)}K</p></div>
-                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Revenue Earned</p><p className="font-semibold text-primary">${cr.revenue.toLocaleString()}</p></div>
-                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Total Sales</p><p className="font-semibold text-foreground">{cr.sales}</p></div>
-                  <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Total Clicks</p><p className="font-semibold text-foreground">{cr.clicks.toLocaleString()}</p></div>
-                </div>
-                <div>
-                  <h3 className="font-display font-semibold text-foreground mb-2">Platforms</h3>
-                  <div className="flex flex-wrap gap-3">
-                    {cr.platforms.map((p, i) => (
-                      <div key={i} className="p-3 rounded-xl bg-muted/50 dark-green-outline">
-                        <p className="text-xs text-muted-foreground">{p.name}</p>
-                        <p className="font-semibold text-foreground">{p.followers}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                {cr.portfolio.length > 0 && (
-                  <div>
-                    <h3 className="font-display font-semibold text-foreground mb-2">Portfolio</h3>
-                    <div className="space-y-2">
-                      {cr.portfolio.map((item, i) => (
-                        <div key={i} className="p-3 rounded-xl border border-border dark-green-outline">
-                          <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">{item.url}</a>
-                          {item.description && <p className="text-xs text-muted-foreground mt-1">{item.description}</p>}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {creatorApps.length > 0 && (
-                  <div>
-                    <h3 className="font-display font-semibold text-foreground mb-2">Applications</h3>
-                    {creatorApps.map((app) => (
-                      <div key={app.id} className="p-3 rounded-xl border border-border flex items-center justify-between dark-green-outline mb-2">
-                        <div><p className="font-semibold text-foreground text-sm">{app.campaignName}</p></div>
-                        <Badge variant={app.status === "accepted" ? "default" : app.status === "denied" ? "secondary" : "outline"}>{app.status}</Badge>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <div className="flex gap-3">
-                  {(() => {
-                    const eligibleInviteCampaigns = getInviteEligibleCampaigns(cr.name);
-                    const canInvite = campaigns.filter((c) => c.status === "active").length === 0 || eligibleInviteCampaigns.length > 0;
-                    const inviteLabel = relation === "active" ? "Invite to another campaign" : "Invite to Campaign";
-                    return canInvite ? (
-                      <Button variant="hero" onClick={() => handleInviteCreator(cr.name)}>
-                        <Send className="w-4 h-4 mr-1" /> {inviteLabel}
-                      </Button>
-                    ) : null;
-                  })()}
-                  <Button variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => setShowBlockConfirm(cr.name)}>
-                    <Ban className="w-4 h-4 mr-1" /> Block
-                  </Button>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-          </div>
-        )}
-
-        {tab === "creators" && !selectedCreatorDetail && !appCreatorDetail && (
+        {tab === "creators" && !selectedCreatorDetail && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h1 className="font-display text-3xl font-bold text-foreground">Creators</h1>
             </div>
 
             <div className="flex gap-2 mb-4 flex-wrap">
-              <button type="button" onClick={() => { setCreatorListTab("all"); setAppCreatorDetail(null); }} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "all" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>All Creators</button>
-              <button type="button" onClick={() => { setCreatorListTab("my"); setAppCreatorDetail(null); }} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "my" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>My Creators</button>
-              <button type="button" onClick={() => { setCreatorListTab("invited"); setAppCreatorDetail(null); }} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "invited" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>Invited Creators</button>
-              <button type="button" onClick={() => { setCreatorListTab("applications"); setSelectedCreatorDetail(null); setCreatorDetailContext(null); }} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "applications" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>Applications</button>
+              <button type="button" onClick={() => { setCreatorListTab("all"); setSelectedCreatorDetail(null); setCreatorDetailContext(null); setStandaloneProfileReturnTab(null); }} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "all" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>All Creators</button>
+              <button type="button" onClick={() => { setCreatorListTab("my"); setSelectedCreatorDetail(null); setCreatorDetailContext(null); setStandaloneProfileReturnTab(null); }} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "my" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>My Creators</button>
+              <button type="button" onClick={() => { setCreatorListTab("invited"); setSelectedCreatorDetail(null); setCreatorDetailContext(null); setStandaloneProfileReturnTab(null); }} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "invited" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>Invited Creators</button>
+              <button type="button" onClick={() => { setCreatorListTab("applications"); setSelectedCreatorDetail(null); setCreatorDetailContext(null); setStandaloneProfileReturnTab(null); }} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "applications" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>Applications</button>
             </div>
 
             {creatorListTab === "applications" ? (
@@ -2467,10 +2426,10 @@ const BrandDashboard = () => {
                       <div key={app.id} className={cardClass + " space-y-3"}>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold cursor-pointer" onClick={() => setAppCreatorDetail(app.creator)}>{app.creator[0]}</div>
+                            <button type="button" className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold cursor-pointer shrink-0" onClick={() => { setCreatorListTab("applications"); openCreatorStandaloneProfile(app.creator, "creators"); }}>{app.creator[0]}</button>
                             <div>
                               <div className="flex items-center gap-2">
-                                <p className="font-semibold text-foreground cursor-pointer hover:text-primary transition-colors" onClick={() => setAppCreatorDetail(app.creator)}>{app.creator}</p>
+                                <button type="button" className="font-semibold text-foreground cursor-pointer hover:text-primary transition-colors text-left" onClick={() => { setCreatorListTab("applications"); openCreatorStandaloneProfile(app.creator, "creators"); }}>{app.creator}</button>
                                 {app.isSimulated && <Badge variant="secondary" className="text-xs">Simulated</Badge>}
                               </div>
                               <p className="text-sm text-muted-foreground">{app.platform} · {app.followers} followers · {app.category}</p>
@@ -2550,11 +2509,20 @@ const BrandDashboard = () => {
                       return (
                         <div key={`${ic.name}-${ic.campaignId}-${i}`} className={cardClass + " flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"}>
                           <div>
-                            <p className="font-semibold text-foreground">{ic.name}</p>
+                            <button
+                              type="button"
+                              className="font-semibold text-foreground hover:text-primary text-left"
+                              onClick={() => {
+                                setCreatorListTab("invited");
+                                openCreatorStandaloneProfile(ic.name, "creators");
+                              }}
+                            >
+                              {ic.name}
+                            </button>
                             <p className="text-sm text-muted-foreground">Invited to: {camp?.name || "Campaign"}</p>
                             {joinedThis && <Badge className="mt-1 bg-primary/10 text-primary border-0 text-xs">Joined this campaign</Badge>}
                           </div>
-                          <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:bg-destructive/10 shrink-0" onClick={() => handleWithdrawInvite(ic.name, ic.campaignId)}>
+                          <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:bg-destructive/10 shrink-0" onClick={() => setWithdrawInviteConfirm({ name: ic.name, campaignId: ic.campaignId })}>
                             Withdraw invite
                           </Button>
                         </div>
@@ -2668,16 +2636,34 @@ const BrandDashboard = () => {
 
         {/* Creator detail view (from Creators tab or from a campaign’s active creators) */}
         {selectedCreatorDetail && (
-          (tab === "creators" && creatorDetailContext === "creators-list") ||
+          (tab === "creators" && (creatorDetailContext === "creators-list" || creatorDetailContext === "standalone")) ||
           (creatorDetailContext === "campaign" && (tab === "campaigns" || tab === "dashboard") && selectedCampaignId)
         ) && (() => {
           const onBack = closeCreatorProfile;
-          const backLabel = creatorDetailContext === "campaign" ? "Back to campaign" : "Back to creators";
+          const backLabel =
+            creatorDetailContext === "campaign"
+              ? "Back to campaign"
+              : creatorDetailContext === "standalone" && standaloneProfileReturnTab === "shipping"
+                ? "Back to shipping"
+                : creatorDetailContext === "standalone" && standaloneProfileReturnTab === "analytics"
+                  ? "Back to analytics"
+                  : creatorDetailContext === "standalone" && standaloneProfileReturnTab === "dashboard"
+                    ? "Back to dashboard"
+                    : creatorDetailContext === "standalone" && standaloneProfileReturnTab === "settings"
+                      ? "Back to settings"
+                      : creatorDetailContext === "standalone" && standaloneProfileReturnTab === "creator-view"
+                        ? "Back to creator view"
+                        : creatorDetailContext === "standalone" && standaloneProfileReturnTab === "campaigns"
+                          ? "Back to campaigns"
+                          : creatorDetailContext === "standalone" && creatorListTab === "applications"
+                            ? "Back to applications"
+                            : "Back to creators";
           const cr = allCreators.find((c) => c.name === selectedCreatorDetail);
           if (!cr) {
             const app = applications.find((a) => a.creator === selectedCreatorDetail) || null;
             const active = campaigns.flatMap((c) => c.activeCreators).find((ac) => ac.name === selectedCreatorDetail) || null;
-            if (!app && !active) return null;
+            const hasInviteOnly = invitedCreators.some((ic) => ic.name === selectedCreatorDetail);
+            if (!app && !active && !hasInviteOnly) return null;
             const name = selectedCreatorDetail;
             const platform = app?.platform || active?.platform || "TikTok";
             const followers = app?.followers || active?.followers || "0";
@@ -2776,6 +2762,8 @@ const BrandDashboard = () => {
                     </div>
                   )}
 
+                  {renderInvitedCreatorsSectionForProfile(name)}
+
                   {creatorApps.length > 0 && (
                     <div>
                       <h3 className="font-display font-semibold text-foreground mb-2">Applications</h3>
@@ -2847,6 +2835,8 @@ const BrandDashboard = () => {
                   </div>
                 )}
 
+                {renderInvitedCreatorsSectionForProfile(cr.name)}
+
                 {cr.portfolio.length > 0 && (
                   <div>
                     <h3 className="font-display font-semibold text-foreground mb-2">Portfolio</h3>
@@ -2899,7 +2889,12 @@ const BrandDashboard = () => {
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="font-semibold text-foreground">{sp.campaignName}</h3>
-                        <p className="text-sm text-muted-foreground">To: {sp.creatorName}</p>
+                        <p className="text-sm text-muted-foreground">
+                          To:{" "}
+                          <button type="button" className="text-primary hover:underline font-medium" onClick={() => openCreatorStandaloneProfile(sp.creatorName, "shipping")}>
+                            {sp.creatorName}
+                          </button>
+                        </p>
                       </div>
                       <Badge variant="secondary">{sp.productType === "digital" ? "Emailed" : "Shipped"}</Badge>
                     </div>
@@ -3224,6 +3219,18 @@ const BrandDashboard = () => {
                     {brandCampaigns[0]?.websiteUrl && (
                       <a href={brandCampaigns[0].websiteUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1"><ExternalLink className="w-3 h-3" /> {brandCampaigns[0].websiteUrl}</a>
                     )}
+                    <div>
+                      <h3 className="font-display font-semibold text-foreground mb-2">Invited creators</h3>
+                      <p className="text-xs text-muted-foreground mb-3">Approximate active creators per campaign for this brand (creators join or are invited per campaign).</p>
+                      <div className="space-y-2">
+                        {brandCampaigns.map((bc) => (
+                          <div key={bc.id} className="p-3 rounded-xl border border-border dark-green-outline flex items-center justify-between gap-2">
+                            <span className="text-sm font-medium text-foreground">{bc.product}</span>
+                            <span className="text-sm text-muted-foreground tabular-nums">~{bc.activeCreatorsOnCampaign ?? "—"} creators</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                   <h2 className="font-display text-xl font-semibold text-foreground">Campaigns by {cvViewingBrand}</h2>
                   <div className="space-y-3">

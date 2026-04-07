@@ -354,11 +354,39 @@ const CreatorDashboard = () => {
     setAnalyticsLines((prev) => prev.includes(line) ? prev.filter((l) => l !== line) : [...prev, line]);
   };
 
-  const BrandLogoMark = ({ brand, size = "w-14 h-14", textClassName = "text-lg" }: { brand: string; size?: string; textClassName?: string }) => (
-    <div className={`${size} rounded-xl bg-primary/10 border border-border flex items-center justify-center shrink-0`} aria-hidden>
-      <span className={`font-display font-bold text-primary select-none ${textClassName}`}>{brand[0]?.toUpperCase() ?? "?"}</span>
-    </div>
-  );
+  const BrandLogoMark = ({
+    brand,
+    size = "w-14 h-14",
+    textClassName = "text-lg",
+    onOpenBrand,
+  }: {
+    brand: string;
+    size?: string;
+    textClassName?: string;
+    onOpenBrand?: () => void;
+  }) => {
+    const mark = (
+      <div className={`${size} rounded-xl bg-primary/10 border border-border flex items-center justify-center shrink-0`} aria-hidden>
+        <span className={`font-display font-bold text-primary select-none ${textClassName}`}>{brand[0]?.toUpperCase() ?? "?"}</span>
+      </div>
+    );
+    if (onOpenBrand) {
+      return (
+        <button
+          type="button"
+          className="shrink-0 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenBrand();
+          }}
+          aria-label={`View ${brand} profile`}
+        >
+          {mark}
+        </button>
+      );
+    }
+    return mark;
+  };
 
   const CampaignProductGallery = ({ campaign }: { campaign: (typeof availableCampaigns)[0] }) => {
     const n = Math.max(1, campaign.productImageCount);
@@ -801,6 +829,27 @@ const CreatorDashboard = () => {
                   <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Active Campaigns</p><p className="font-display text-xl font-bold text-foreground">{ba.campaigns}</p></div>
                   <div className="p-4 rounded-xl bg-muted/50 dark-green-outline"><p className="text-xs text-muted-foreground">Total Creators</p><p className="font-display text-xl font-bold text-foreground">{ba.creators}</p></div>
                 </div>
+                <div>
+                  <h3 className="font-display font-semibold text-foreground mb-2">Invited creators</h3>
+                  <p className="text-xs text-muted-foreground mb-3">Approximate creators working with this brand on each live campaign.</p>
+                  <div className="space-y-2">
+                    {brandCampaigns.map((camp) => (
+                      <div key={camp.id} className="p-3 rounded-xl border border-border dark-green-outline flex items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          className="text-sm font-medium text-foreground hover:text-primary text-left"
+                          onClick={() => {
+                            setViewingBrand(null);
+                            setSelectedCampaign(camp.id);
+                          }}
+                        >
+                          {camp.product}
+                        </button>
+                        <span className="text-sm text-muted-foreground tabular-nums">~{camp.activeCreatorsCount} creators</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
               <h2 className="font-display text-xl font-semibold text-foreground">Campaigns by {viewingBrand}</h2>
               <div className="space-y-3">
@@ -810,7 +859,7 @@ const CreatorDashboard = () => {
                     <div key={c.id} className={cardClass + " hover:shadow-card-hover transition-shadow cursor-pointer"} onClick={() => setSelectedCampaign(c.id)}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                          <BrandLogoMark brand={c.brand} />
+                          <BrandLogoMark brand={c.brand} onOpenBrand={() => { setSelectedCampaign(null); setViewingBrand(c.brand); }} />
                           <div>
                             <div className="flex items-center gap-2 flex-wrap">
                               <h3 className="font-display font-bold text-foreground">{c.product}</h3>
@@ -899,7 +948,7 @@ const CreatorDashboard = () => {
                   <div key={c.id} className={cardClass + " hover:shadow-card-hover transition-shadow cursor-pointer"} onClick={() => setSelectedCampaign(c.id)}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        <BrandLogoMark brand={c.brand} />
+                        <BrandLogoMark brand={c.brand} onOpenBrand={() => { setViewingBrand(c.brand); }} />
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="font-display font-bold text-foreground">{c.product}</h3>
@@ -912,7 +961,7 @@ const CreatorDashboard = () => {
                             {c.signOnPay > 0 && <Badge className="bg-success/10 text-primary border-0 text-xs">${c.signOnPay} sign-on pay</Badge>}
                           </div>
                           <p className="text-sm text-muted-foreground">
-                            <button className="text-primary hover:underline" onClick={(e) => { e.stopPropagation(); setViewingBrand(c.brand); }}>{c.brand}</button>
+                            <button type="button" className="text-primary hover:underline" onClick={(e) => { e.stopPropagation(); setViewingBrand(c.brand); }}>{c.brand}</button>
                             {" · "}{c.category} · {c.adPlatforms && c.adPlatforms.length > 1 ? "Multiple Platforms" : c.platform}
                           </p>
                           <p className="text-xs text-muted-foreground mt-1">{c.payMethod}</p>
@@ -945,7 +994,7 @@ const CreatorDashboard = () => {
               <button onClick={() => setSelectedCampaign(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to campaigns</button>
               <div className={sectionCardClass + " space-y-6"}>
                 <div className="flex items-center gap-4">
-                  <BrandLogoMark brand={c.brand} size="w-20 h-20" textClassName="text-2xl" />
+                  <BrandLogoMark brand={c.brand} size="w-20 h-20" textClassName="text-2xl" onOpenBrand={() => { setSelectedCampaign(null); setViewingBrand(c.brand); }} />
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <h1 className="font-display text-2xl font-bold text-foreground">{c.product}</h1>
@@ -957,7 +1006,7 @@ const CreatorDashboard = () => {
                       )}
                     </div>
                     <p className="text-muted-foreground">
-                      <button className="text-primary hover:underline" onClick={() => { setSelectedCampaign(null); setViewingBrand(c.brand); }}>{c.brand}</button>
+                      <button type="button" className="text-primary hover:underline" onClick={() => { setSelectedCampaign(null); setViewingBrand(c.brand); }}>{c.brand}</button>
                       {" · "}{c.category}
                     </p>
                   </div>
@@ -1009,10 +1058,10 @@ const CreatorDashboard = () => {
                     <div key={c.id} className={cardClass + " cursor-pointer hover:shadow-card-hover transition-shadow"} onClick={() => setSelectedMyCampaign(c.id)}>
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-4">
-                          <BrandLogoMark brand={c.brand} />
+                          <BrandLogoMark brand={c.brand} onOpenBrand={() => { setTab("feed"); setViewingBrand(c.brand); }} />
                           <div>
                             <h3 className="font-display font-bold text-foreground hover:text-primary transition-colors">{c.product}</h3>
-                            <p className="text-sm text-muted-foreground">{c.brand}</p>
+                            <button type="button" className="text-sm text-primary hover:underline text-left" onClick={(e) => { e.stopPropagation(); setTab("feed"); setViewingBrand(c.brand); }}>{c.brand}</button>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
@@ -1069,10 +1118,13 @@ const CreatorDashboard = () => {
                     return (
                       <div key={id} className={cardClass + " flex items-center justify-between"}>
                         <div className="flex items-center gap-4 cursor-pointer" onClick={() => { setTab("feed"); setSelectedCampaign(id); }}>
-                          <BrandLogoMark brand={c.brand} size="w-12 h-12" textClassName="text-base" />
+                          <BrandLogoMark brand={c.brand} size="w-12 h-12" textClassName="text-base" onOpenBrand={() => { setTab("feed"); setViewingBrand(c.brand); }} />
                           <div>
                             <h3 className="font-semibold text-foreground hover:text-primary transition-colors">{c.product}</h3>
-                            <p className="text-sm text-muted-foreground">{c.brand} · {c.category}</p>
+                            <p className="text-sm text-muted-foreground">
+                              <button type="button" className="text-primary hover:underline" onClick={(e) => { e.stopPropagation(); setTab("feed"); setViewingBrand(c.brand); }}>{c.brand}</button>
+                              {" · "}{c.category}
+                            </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
@@ -1098,10 +1150,13 @@ const CreatorDashboard = () => {
                     return (
                       <div key={`product-${id}`} className={cardClass + " flex items-center justify-between"}>
                         <div className="flex items-center gap-4 cursor-pointer" onClick={() => { setTab("feed"); setSelectedCampaign(id); }}>
-                          <BrandLogoMark brand={c.brand} size="w-12 h-12" textClassName="text-base" />
+                          <BrandLogoMark brand={c.brand} size="w-12 h-12" textClassName="text-base" onOpenBrand={() => { setTab("feed"); setViewingBrand(c.brand); }} />
                           <div>
                             <h3 className="font-semibold text-foreground hover:text-primary transition-colors">{c.product}</h3>
-                            <p className="text-sm text-muted-foreground">{c.brand} · Product Application</p>
+                            <p className="text-sm text-muted-foreground">
+                              <button type="button" className="text-primary hover:underline" onClick={(e) => { e.stopPropagation(); setTab("feed"); setViewingBrand(c.brand); }}>{c.brand}</button>
+                              {" · Product Application"}
+                            </p>
                           </div>
                         </div>
                         <Badge variant="secondary">Product Pending</Badge>
@@ -1125,10 +1180,13 @@ const CreatorDashboard = () => {
               <button onClick={() => setSelectedMyCampaign(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to my campaigns</button>
               <div className={sectionCardClass + " space-y-6"}>
                 <div className="flex items-center gap-4">
-                  <BrandLogoMark brand={campaign.brand} size="w-16 h-16" textClassName="text-xl" />
+                  <BrandLogoMark brand={campaign.brand} size="w-16 h-16" textClassName="text-xl" onOpenBrand={() => { setSelectedMyCampaign(null); setTab("feed"); setViewingBrand(campaign.brand); }} />
                   <div>
                     <h1 className="font-display text-2xl font-bold text-foreground">{campaign.product}</h1>
-                    <p className="text-muted-foreground">{campaign.brand} · {campaign.category}</p>
+                    <p className="text-muted-foreground">
+                      <button type="button" className="text-primary hover:underline" onClick={() => { setSelectedMyCampaign(null); setTab("feed"); setViewingBrand(campaign.brand); }}>{campaign.brand}</button>
+                      {" · "}{campaign.category}
+                    </p>
                   </div>
                 </div>
                 <CampaignProductGallery campaign={campaign} />
@@ -1233,7 +1291,7 @@ const CreatorDashboard = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="font-semibold text-foreground">{c.product}</h3>
-                      <p className="text-xs text-muted-foreground">{c.brand}</p>
+                      <button type="button" className="text-xs text-primary hover:underline text-left" onClick={() => { setTab("feed"); setViewingBrand(c.brand); }}>{c.brand}</button>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="relative">
@@ -1393,7 +1451,11 @@ const CreatorDashboard = () => {
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="font-semibold text-foreground">{sp.product}</h3>
-                        <p className="text-sm text-muted-foreground">From: {sp.brand} · Campaign: {sp.campaign}</p>
+                        <p className="text-sm text-muted-foreground">
+                          From:{" "}
+                          <button type="button" className="text-primary hover:underline font-medium" onClick={() => { setTab("feed"); setViewingBrand(sp.brand); }}>{sp.brand}</button>
+                          {" · Campaign: "}{sp.campaign}
+                        </p>
                       </div>
                       <Badge variant="secondary"><Truck className="w-3 h-3 mr-1" /> Shipped</Badge>
                     </div>
@@ -1499,7 +1561,7 @@ const CreatorDashboard = () => {
                     <div key={c.id} className="flex items-center justify-between p-4 rounded-xl border border-border dark-green-outline">
                       <div>
                         <p className="font-semibold text-foreground">{c.product}</p>
-                        <p className="text-xs text-muted-foreground">{c.brand}</p>
+                        <button type="button" className="text-xs text-primary hover:underline text-left" onClick={() => { setAnalyticsDetail(null); setTab("feed"); setViewingBrand(c.brand); }}>{c.brand}</button>
                       </div>
                       <div className="text-right">
                         {analyticsDetail === "earnings" && <p className="font-display font-bold text-primary">${c.earnings}</p>}
