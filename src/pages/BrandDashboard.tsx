@@ -5,9 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   BarChart3, Plus, Users, DollarSign, Settings, Eye, LogOut, Search,
-  Bell, Lock, TrendingUp, Filter, Send, Check, X as XIcon,
+  Lock, TrendingUp, Filter, Send, Check, X as XIcon,
   Package, Link2, MoreHorizontal, Star, Info, Moon, Sun, User, KeyRound, Crown, CreditCard,
-  ChevronLeft, ChevronRight, Image as ImageIcon, AlertCircle, UserX, Ban, Upload, MapPin, Truck, Calendar, ExternalLink
+  ChevronLeft, ChevronRight, Image as ImageIcon, AlertCircle, UserX, Ban, Upload, MapPin, Truck, Calendar, ExternalLink, History
 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
@@ -53,7 +53,7 @@ type Campaign = {
   payMethod: string;
   platforms: string[];
   requireApply: boolean;
-  activeCreators: { name: string; platform: string; followers: string; clicks: number; sales: number; earnings: number }[];
+  activeCreators: { name: string; platform: string; followers: string; clicks: number; sales: number; earnings: number; isTestCreator?: boolean }[];
   images?: string[];
   notes?: string;
   discount?: string;
@@ -82,6 +82,16 @@ type Application = {
   isSimulated?: boolean;
 };
 
+type AttributionEntry = {
+  id: number;
+  campaignId: number;
+  campaignName: string;
+  creatorName: string;
+  type: "sales" | "clicks" | "dollars";
+  amount: number;
+  createdAt: string;
+};
+
 type ShippedProduct = {
   id: number;
   campaignId: number;
@@ -96,7 +106,7 @@ type ShippedProduct = {
   expectedDelivery: string;
 };
 
-type Tab = "dashboard" | "campaigns" | "new-campaign" | "applications" | "creators" | "analytics" | "creator-view" | "settings" | "shipping";
+type Tab = "dashboard" | "campaigns" | "new-campaign" | "creators" | "analytics" | "creator-view" | "settings" | "shipping";
 
 const BrandDashboard = () => {
   const navigate = useNavigate();
@@ -116,7 +126,10 @@ const BrandDashboard = () => {
   const [editingCampaignId, setEditingCampaignId] = useState<number | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
   const [selectedCreatorDetail, setSelectedCreatorDetail] = useState<string | null>(null);
-  const [creatorListTab, setCreatorListTab] = useState<"all" | "my" | "invited">("all");
+  const [creatorListTab, setCreatorListTab] = useState<"all" | "my" | "invited" | "applications">("all");
+  const [creatorDetailContext, setCreatorDetailContext] = useState<"creators-list" | "campaign" | null>(null);
+  const [attributionHistory, setAttributionHistory] = useState<AttributionEntry[]>([]);
+  const [showCampaignAttributionHistory, setShowCampaignAttributionHistory] = useState(false);
   const [campaignGalleryLightbox, setCampaignGalleryLightbox] = useState<{ campaignId: number; imageIndex: number } | null>(null);
   const campaignGalleryTouchStart = useRef<number | null>(null);
   const [attributeError, setAttributeError] = useState(false);
@@ -320,7 +333,6 @@ const BrandDashboard = () => {
     { key: "dashboard", label: "Dashboard", icon: BarChart3 },
     { key: "campaigns", label: "Campaigns", icon: Package },
     { key: "new-campaign", label: "New Campaign", icon: Plus },
-    { key: "applications", label: "Applications", icon: Bell },
     { key: "creators", label: "Creators", icon: Users, pro: true },
     { key: "shipping", label: "Shipping", icon: Truck },
     { key: "analytics", label: "Analytics", icon: TrendingUp },
@@ -661,10 +673,8 @@ const BrandDashboard = () => {
     const fakeLastNames = ["Martinez", "Clark", "Thompson", "Wilson", "Chen", "Patel", "Kim", "Santos", "Nakamura", "Okafor"];
     const fakeName = `${fakeFirstNames[Math.floor(Math.random() * fakeFirstNames.length)]} ${fakeLastNames[Math.floor(Math.random() * fakeLastNames.length)]}`;
     const allPlatforms = ["Instagram", "TikTok", "YouTube", "Twitter/X", "Facebook"];
-    const fakeCategories = ["Beauty", "Health", "Tech", "Fashion", "Food", "Sports", "Travel", "Home", "Education", "Entertainment"];
     const fakePlatform = allPlatforms[Math.floor(Math.random() * 3)]; // primary
     const fakeFollowersNum = Math.floor(Math.random() * 200 + 5);
-    const fakeCategory = fakeCategories[Math.floor(Math.random() * fakeCategories.length)];
     const fakeClicks = Math.floor(Math.random() * 5000 + 100);
     const fakeSales = Math.floor(Math.random() * 200 + 5);
     const fakeEarnings = Math.floor(Math.random() * 2000 + 50);
@@ -676,29 +686,12 @@ const BrandDashboard = () => {
           ...c,
           activeCreators: [
             ...c.activeCreators,
-            { name: fakeName, platform: fakePlatform, followers: `${fakeFollowersNum}K`, clicks: fakeClicks, sales: fakeSales, earnings: fakeEarnings },
+            { name: fakeName, platform: fakePlatform, followers: `${fakeFollowersNum}K`, clicks: fakeClicks, sales: fakeSales, earnings: fakeEarnings, isTestCreator: true },
           ],
         };
       }
       return c;
     }));
-
-    // Also add to allCreators-like data by adding a simulated application as accepted
-    const campaign = campaigns.find((c) => c.id === fakeCreatorCampaignId);
-    if (campaign) {
-      const newApp: Application = {
-        id: Date.now(),
-        creator: fakeName,
-        platform: fakePlatform,
-        followers: `${fakeFollowersNum}K`,
-        category: fakeCategory,
-        campaignId: campaign.id,
-        campaignName: campaign.name,
-        status: "accepted",
-        isSimulated: true,
-      };
-      setApplications((prev) => [...prev, newApp]);
-    }
 
     setShowFakeCreator(false);
     setFakeCreatorCampaignId(null);
@@ -709,11 +702,10 @@ const BrandDashboard = () => {
   };
 
   const handleClearSimulatedCreators = () => {
-    // Remove simulated creators from campaigns
-    const simulatedNames = applications.filter((a) => a.isSimulated && a.status === "accepted").map((a) => a.creator);
+    const simulatedAcceptedNames = new Set(applications.filter((a) => a.isSimulated && a.status === "accepted").map((a) => a.creator));
     setCampaigns((prev) => prev.map((c) => ({
       ...c,
-      activeCreators: c.activeCreators.filter((cr) => !simulatedNames.includes(cr.name)),
+      activeCreators: c.activeCreators.filter((cr) => !cr.isTestCreator && !simulatedAcceptedNames.has(cr.name)),
     })));
     setApplications((prev) => prev.filter((a) => !(a.isSimulated && a.status === "accepted")));
   };
@@ -752,6 +744,8 @@ const BrandDashboard = () => {
     setSubscriptionDetail(false);
     setCreatorViewSelected(null);
     setAppCreatorDetail(null);
+    setCreatorDetailContext(null);
+    setShowCampaignAttributionHistory(false);
   };
 
   const handleDeleteCampaign = (id: number) => {
@@ -771,13 +765,59 @@ const BrandDashboard = () => {
   };
 
   const handleAttributeSales = () => {
-    if (!attributeCreator) {
+    if (!attributeCreator || !selectedCampaignId) {
       setAttributeError(true);
       return;
     }
+    const campaign = campaigns.find((c) => c.id === selectedCampaignId);
+    if (!campaign || !campaign.activeCreators.some((cr) => cr.name === attributeCreator)) {
+      setAttributeError(true);
+      return;
+    }
+    const raw = attributeValue.trim();
+    const n = Number(raw);
+    if (!raw || !Number.isFinite(n) || n <= 0) {
+      setAttributeError(true);
+      return;
+    }
+    const delta = attributeType === "dollars" ? Math.round(n * 100) / 100 : Math.round(n);
+
+    setCampaigns((prev) =>
+      prev.map((c) => {
+        if (c.id !== selectedCampaignId) return c;
+        return {
+          ...c,
+          activeCreators: c.activeCreators.map((cr) => {
+            if (cr.name !== attributeCreator) return cr;
+            if (attributeType === "clicks") return { ...cr, clicks: cr.clicks + delta };
+            if (attributeType === "sales") return { ...cr, sales: cr.sales + delta };
+            return { ...cr, earnings: cr.earnings + delta };
+          }),
+        };
+      }),
+    );
+
+    setAttributionHistory((prev) => [
+      ...prev,
+      {
+        id: Date.now(),
+        campaignId: selectedCampaignId,
+        campaignName: campaign.name,
+        creatorName: attributeCreator,
+        type: attributeType,
+        amount: delta,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+
     setAttributeError(false);
     setAttributeCreator("");
     setAttributeValue("");
+  };
+
+  const closeCreatorProfile = () => {
+    setSelectedCreatorDetail(null);
+    setCreatorDetailContext(null);
   };
 
   useEffect(() => {
@@ -1200,6 +1240,40 @@ const BrandDashboard = () => {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={showCampaignAttributionHistory} onOpenChange={setShowCampaignAttributionHistory}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Attribution history</DialogTitle>
+            <DialogDescription>
+              Manual entries you added with Attribute Sales for{" "}
+              {selectedCampaignId ? (campaigns.find((c) => c.id === selectedCampaignId)?.name || "this campaign") : "this campaign"}.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedCampaignId ? (() => {
+            const rows = attributionHistory.filter((e) => e.campaignId === selectedCampaignId).slice().reverse();
+            if (rows.length === 0) {
+              return <p className="text-sm text-muted-foreground py-4">No manual attributions yet. Add clicks, sales, or dollar amounts from the campaign page.</p>;
+            }
+            return (
+              <ul className="space-y-2">
+                {rows.map((e) => (
+                  <li key={e.id} className="rounded-xl border border-border p-3 text-sm dark-green-outline">
+                    <p className="font-medium text-foreground">{e.creatorName}</p>
+                    <p className="text-muted-foreground text-xs mt-1">
+                      {new Date(e.createdAt).toLocaleString()}
+                      {" · "}
+                      {e.type === "clicks" ? `+${e.amount} clicks` : e.type === "sales" ? `+${e.amount} sales` : `+$${e.amount} earned`}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            );
+          })() : (
+            <p className="text-sm text-muted-foreground">Open a campaign to view its history.</p>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Simulate application dialog */}
       <Dialog open={showSimulate} onOpenChange={setShowSimulate}>
         <DialogContent className="max-w-sm">
@@ -1397,6 +1471,7 @@ const BrandDashboard = () => {
         {(tab === "campaigns" || tab === "dashboard") && selectedCampaignId && (() => {
           const campaign = campaigns.find((c) => c.id === selectedCampaignId);
           if (!campaign) return null;
+          if (selectedCreatorDetail && creatorDetailContext === "campaign") return null;
           const galleryImages = campaign.images && campaign.images.length > 0 ? campaign.images : [];
           return (
             <div className="space-y-6">
@@ -1509,7 +1584,7 @@ const BrandDashboard = () => {
                   <div className="space-y-3">
                     {campaign.activeCreators.map((cr, i) => (
                       <div key={i} className="flex items-center justify-between p-4 rounded-xl border border-border dark-green-outline">
-                        <div className="flex items-center gap-3 cursor-pointer" onClick={() => setSelectedCreatorDetail(cr.name)}>
+                        <div className="flex items-center gap-3 cursor-pointer" onClick={() => { setSelectedCreatorDetail(cr.name); setCreatorDetailContext("campaign"); }}>
                           <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">{cr.name[0]}</div>
                           <div>
                             <p className="font-semibold text-foreground hover:text-primary transition-colors">{cr.name}</p>
@@ -1542,8 +1617,15 @@ const BrandDashboard = () => {
               </div>
 
               <div className={sectionCardClass}>
-                <h2 className="font-display text-lg font-semibold text-foreground mb-4">Attribute Sales</h2>
-                <p className="text-sm text-muted-foreground mb-4">Manually attribute offline sales, clicks, or revenue to a creator in this campaign.</p>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
+                  <div>
+                    <h2 className="font-display text-lg font-semibold text-foreground">Attribute Sales</h2>
+                    <p className="text-sm text-muted-foreground mt-1">Manually attribute offline sales, clicks, or revenue to a creator in this campaign. Totals update in Active Creators above.</p>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => setShowCampaignAttributionHistory(true)}>
+                    <History className="w-4 h-4 mr-2" /> Attribution history
+                  </Button>
+                </div>
                 <div className="flex gap-3 items-end flex-wrap">
                   <div className="flex-1 min-w-[150px]">
                     <label className="text-sm font-medium text-foreground">Creator</label>
@@ -1556,7 +1638,7 @@ const BrandDashboard = () => {
                   </div>
                   <div className="w-32">
                     <label className="text-sm font-medium text-foreground">Type</label>
-                    <select className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm" value={attributeType} onChange={(e) => setAttributeType(e.target.value as any)}>
+                    <select className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm" value={attributeType} onChange={(e) => setAttributeType(e.target.value as "sales" | "clicks" | "dollars")}>
                       <option value="sales">Sales</option>
                       <option value="clicks">Clicks</option>
                       <option value="dollars">Dollar Amount ($)</option>
@@ -1909,72 +1991,19 @@ const BrandDashboard = () => {
           </div>
         )}
 
-        {tab === "applications" && !appCreatorDetail && (
+        {/* Inline creator detail from applications */}
+        {tab === "creators" && creatorListTab === "applications" && appCreatorDetail && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h1 className="font-display text-3xl font-bold text-foreground">Applications</h1>
-              <div className="flex gap-2">
-                {applications.some((a) => a.isSimulated) && (
-                  <Button variant="outline" size="sm" className="text-destructive border-destructive/30" onClick={handleClearSimulatedApplications}>Clear Simulated</Button>
-                )}
-                <Button variant="outline" onClick={() => setShowSimulate(true)}>Simulate Creator Application</Button>
-              </div>
+              <h1 className="font-display text-3xl font-bold text-foreground">Creators</h1>
             </div>
-            {applications.length === 0 ? (
-              <p className="text-center text-muted-foreground py-12">No applications yet. Creators will appear here when they apply to your campaigns.</p>
-            ) : (
-              <div className="space-y-3">
-                {applications.map((app) => (
-                  <div key={app.id} className={cardClass + " space-y-3"}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold cursor-pointer" onClick={() => setAppCreatorDetail(app.creator)}>{app.creator[0]}</div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold text-foreground cursor-pointer hover:text-primary transition-colors" onClick={() => setAppCreatorDetail(app.creator)}>{app.creator}</p>
-                            {app.isSimulated && <Badge variant="secondary" className="text-xs">Simulated</Badge>}
-                          </div>
-                          <p className="text-sm text-muted-foreground">{app.platform} · {app.followers} followers · {app.category}</p>
-                          <p className="text-xs text-muted-foreground">Campaign: {app.campaignName}</p>
-                        </div>
-                      </div>
-                      {app.status === "pending" ? (
-                        <div className="flex gap-2">
-                          <Button variant="hero" size="sm" onClick={() => handleAcceptApplication(app.id)}><Check className="w-4 h-4 mr-1" /> Accept</Button>
-                          <Button variant="outline" size="sm" onClick={() => handleDenyApplication(app.id)}><XIcon className="w-4 h-4 mr-1" /> Deny</Button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <Badge variant={app.status === "accepted" ? "default" : "secondary"}>{app.status}</Badge>
-                          {app.status === "accepted" && (() => {
-                            const campaign = campaigns.find((c) => c.id === app.campaignId);
-                            const alreadyShipped = shippedProducts.some((s) => s.creatorName === app.creator && s.campaignId === app.campaignId);
-                            if (campaign?.paidProduct && !alreadyShipped) {
-                              return (
-                                <Button variant="outline" size="sm" onClick={() => setShowMarkShipped(app)}>
-                                  <Truck className="w-4 h-4 mr-1" /> {campaign.productType === "digital" ? "Mark Emailed" : "Mark Shipped"}
-                                </Button>
-                              );
-                            }
-                            if (alreadyShipped) {
-                              return <Badge variant="secondary" className="text-xs"><Check className="w-3 h-3 mr-1" /> Shipped</Badge>;
-                            }
-                            return null;
-                          })()}
-                        </div>
-                      )}
-                    </div>
-                    {app.address && <p className="text-xs text-muted-foreground ml-16"><MapPin className="w-3 h-3 inline mr-1" />{app.address}</p>}
-                    {app.email && <p className="text-xs text-muted-foreground ml-16">📧 {app.email}</p>}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Inline creator detail from applications */}
-        {tab === "applications" && appCreatorDetail && (() => {
+            <div className="flex gap-2 mb-4 flex-wrap">
+              <button type="button" onClick={() => { setCreatorListTab("all"); setAppCreatorDetail(null); }} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "all" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>All Creators</button>
+              <button type="button" onClick={() => { setCreatorListTab("my"); setAppCreatorDetail(null); }} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "my" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>My Creators</button>
+              <button type="button" onClick={() => { setCreatorListTab("invited"); setAppCreatorDetail(null); }} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "invited" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>Invited Creators</button>
+              <button type="button" onClick={() => { setCreatorListTab("applications"); setSelectedCreatorDetail(null); setCreatorDetailContext(null); }} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "applications" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>Applications</button>
+            </div>
+        {(() => {
           const cr = allCreators.find((c) => c.name === appCreatorDetail);
           const creatorApps = applications.filter((a) => a.creator === appCreatorDetail);
           if (!cr) {
@@ -1985,7 +2014,7 @@ const BrandDashboard = () => {
             const creatorCampaigns = campaigns.filter((c) => c.activeCreators.some((ac) => ac.name === app.creator));
             return (
               <div className="max-w-2xl space-y-6">
-                <button onClick={() => setAppCreatorDetail(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to applications</button>
+                <button type="button" onClick={() => setAppCreatorDetail(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to applications</button>
                 <div className={sectionCardClass + " space-y-6"}>
                   <div className="flex items-center gap-4">
                     <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-3xl">{app.creator[0]}</div>
@@ -2072,11 +2101,10 @@ const BrandDashboard = () => {
             );
           }
           const relation = getCreatorRelation(cr.name);
-          const isInvited = invitedCreators.some((ic) => ic.name === cr.name);
           const creatorCampaigns = campaigns.filter((c) => c.activeCreators.some((ac) => ac.name === cr.name));
           return (
             <div className="max-w-2xl space-y-6">
-              <button onClick={() => setAppCreatorDetail(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to applications</button>
+              <button type="button" onClick={() => setAppCreatorDetail(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to applications</button>
               <div className={sectionCardClass + " space-y-6"}>
                 <div className="flex items-center gap-4">
                   <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-3xl">{cr.name[0]}</div>
@@ -2150,25 +2178,92 @@ const BrandDashboard = () => {
             </div>
           );
         })()}
+          </div>
+        )}
 
-        {tab === "creators" && !selectedCreatorDetail && (
+        {tab === "creators" && !selectedCreatorDetail && !appCreatorDetail && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h1 className="font-display text-3xl font-bold text-foreground">Creators</h1>
             </div>
 
             <div className="flex gap-2 mb-4 flex-wrap">
-              <button onClick={() => setCreatorListTab("all")} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "all" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>All Creators</button>
-              <button onClick={() => setCreatorListTab("my")} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "my" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>My Creators</button>
-              <button onClick={() => setCreatorListTab("invited")} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "invited" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>Invited Creators</button>
+              <button type="button" onClick={() => { setCreatorListTab("all"); setAppCreatorDetail(null); }} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "all" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>All Creators</button>
+              <button type="button" onClick={() => { setCreatorListTab("my"); setAppCreatorDetail(null); }} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "my" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>My Creators</button>
+              <button type="button" onClick={() => { setCreatorListTab("invited"); setAppCreatorDetail(null); }} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "invited" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>Invited Creators</button>
+              <button type="button" onClick={() => { setCreatorListTab("applications"); setSelectedCreatorDetail(null); setCreatorDetailContext(null); }} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "applications" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>Applications</button>
             </div>
 
+            {creatorListTab === "applications" ? (
+              <div className="space-y-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-muted-foreground">Review applicants and manage acceptances. Test creators added from My Creators do not appear here.</p>
+                  <div className="flex gap-2 flex-wrap shrink-0">
+                    {applications.some((a) => a.isSimulated) && (
+                      <Button variant="outline" size="sm" className="text-destructive border-destructive/30" onClick={handleClearSimulatedApplications}>Clear Simulated</Button>
+                    )}
+                    <Button variant="outline" size="sm" onClick={() => setShowSimulate(true)}>Simulate Application</Button>
+                  </div>
+                </div>
+                {applications.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-12">No applications yet. Creators will appear here when they apply to your campaigns.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {applications.map((app) => (
+                      <div key={app.id} className={cardClass + " space-y-3"}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold cursor-pointer" onClick={() => setAppCreatorDetail(app.creator)}>{app.creator[0]}</div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="font-semibold text-foreground cursor-pointer hover:text-primary transition-colors" onClick={() => setAppCreatorDetail(app.creator)}>{app.creator}</p>
+                                {app.isSimulated && <Badge variant="secondary" className="text-xs">Simulated</Badge>}
+                              </div>
+                              <p className="text-sm text-muted-foreground">{app.platform} · {app.followers} followers · {app.category}</p>
+                              <p className="text-xs text-muted-foreground">Campaign: {app.campaignName}</p>
+                            </div>
+                          </div>
+                          {app.status === "pending" ? (
+                            <div className="flex gap-2">
+                              <Button variant="hero" size="sm" onClick={() => handleAcceptApplication(app.id)}><Check className="w-4 h-4 mr-1" /> Accept</Button>
+                              <Button variant="outline" size="sm" onClick={() => handleDenyApplication(app.id)}><XIcon className="w-4 h-4 mr-1" /> Deny</Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <Badge variant={app.status === "accepted" ? "default" : "secondary"}>{app.status}</Badge>
+                              {app.status === "accepted" && (() => {
+                                const appCampaign = campaigns.find((c) => c.id === app.campaignId);
+                                const alreadyShipped = shippedProducts.some((s) => s.creatorName === app.creator && s.campaignId === app.campaignId);
+                                if (appCampaign?.paidProduct && !alreadyShipped) {
+                                  return (
+                                    <Button variant="outline" size="sm" onClick={() => setShowMarkShipped(app)}>
+                                      <Truck className="w-4 h-4 mr-1" /> {appCampaign.productType === "digital" ? "Mark Emailed" : "Mark Shipped"}
+                                    </Button>
+                                  );
+                                }
+                                if (alreadyShipped) {
+                                  return <Badge variant="secondary" className="text-xs"><Check className="w-3 h-3 mr-1" /> Shipped</Badge>;
+                                }
+                                return null;
+                              })()}
+                            </div>
+                          )}
+                        </div>
+                        {app.address && <p className="text-xs text-muted-foreground ml-16"><MapPin className="w-3 h-3 inline mr-1" />{app.address}</p>}
+                        {app.email && <p className="text-xs text-muted-foreground ml-16">📧 {app.email}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+            <>
             {creatorListTab === "my" && (
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <Button variant="outline" onClick={() => setShowFakeCreator(true)}>
                   <Plus className="w-4 h-4 mr-1" /> Add Test Creator
                 </Button>
-                {applications.some((a) => a.isSimulated && a.status === "accepted") && (
+                {(campaigns.some((c) => c.activeCreators.some((cr) => cr.isTestCreator)) || applications.some((a) => a.isSimulated && a.status === "accepted")) && (
                   <Button variant="outline" size="sm" className="text-destructive border-destructive/30" onClick={handleClearSimulatedCreators}>Clear Simulated</Button>
                 )}
               </div>
@@ -2275,7 +2370,7 @@ const BrandDashboard = () => {
                 const inviteLabel = relation === "active" ? "Invite to another campaign" : "Invite to Campaign";
                 const campaignLabels = getActiveCampaignNamesForCreator(cr.name);
                 return (
-                  <div key={cr.name} className={cardClass + " flex items-center justify-between cursor-pointer hover:shadow-card-hover transition-shadow"} onClick={() => setSelectedCreatorDetail(cr.name)}>
+                  <div key={cr.name} className={cardClass + " flex items-center justify-between cursor-pointer hover:shadow-card-hover transition-shadow"} onClick={() => { setSelectedCreatorDetail(cr.name); setCreatorDetailContext("creators-list"); }}>
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">{cr.name[0]}</div>
                       <div>
@@ -2312,11 +2407,18 @@ const BrandDashboard = () => {
               )}
             </div>
             )}
+            </>
+            )}
           </div>
         )}
 
-        {/* Creator detail view */}
-        {tab === "creators" && selectedCreatorDetail && (() => {
+        {/* Creator detail view (from Creators tab or from a campaign’s active creators) */}
+        {selectedCreatorDetail && (
+          (tab === "creators" && creatorDetailContext === "creators-list") ||
+          (creatorDetailContext === "campaign" && (tab === "campaigns" || tab === "dashboard") && selectedCampaignId)
+        ) && (() => {
+          const onBack = closeCreatorProfile;
+          const backLabel = creatorDetailContext === "campaign" ? "Back to campaign" : "Back to creators";
           const cr = allCreators.find((c) => c.name === selectedCreatorDetail);
           if (!cr) {
             const app = applications.find((a) => a.creator === selectedCreatorDetail) || null;
@@ -2332,7 +2434,7 @@ const BrandDashboard = () => {
             const creatorApps = applications.filter((a) => a.creator === name);
             return (
               <div className="max-w-2xl space-y-6">
-                <button onClick={() => setSelectedCreatorDetail(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to creators</button>
+                <button type="button" onClick={onBack} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> {backLabel}</button>
                 <div className={sectionCardClass + " space-y-6"}>
                   <div className="flex items-center gap-4">
                     <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-3xl">{name[0]}</div>
@@ -2436,11 +2538,10 @@ const BrandDashboard = () => {
             );
           }
           const relation = getCreatorRelation(cr.name);
-          const isInvited = invitedCreators.some((ic) => ic.name === cr.name);
           const creatorCampaigns = campaigns.filter((c) => c.activeCreators.some((ac) => ac.name === cr.name));
           return (
             <div className="max-w-2xl space-y-6">
-              <button onClick={() => setSelectedCreatorDetail(null)} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to creators</button>
+              <button type="button" onClick={onBack} className="text-sm text-primary hover:underline flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> {backLabel}</button>
               <div className={sectionCardClass + " space-y-6"}>
                 <div className="flex items-center gap-4">
                   <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-3xl">{cr.name[0]}</div>
