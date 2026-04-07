@@ -422,10 +422,10 @@ const CreatorDashboard = () => {
     }
 
     const metricColorMap: Record<AnalyticsMetricKey, { bar: string; stroke: string }> = {
-      earnings: { bar: "bg-primary/70", stroke: "stroke-primary" },
-      clicks: { bar: "bg-blue-500/70", stroke: "stroke-blue-500" },
-      sales: { bar: "bg-orange-500/70", stroke: "stroke-orange-500" },
-      revenue: { bar: "bg-purple-500/70", stroke: "stroke-purple-500" },
+      earnings: { bar: "bg-primary/80 dark:bg-primary", stroke: "stroke-primary" },
+      clicks: { bar: "bg-blue-500/80 dark:bg-blue-400", stroke: "stroke-blue-500 dark:stroke-blue-400" },
+      sales: { bar: "bg-orange-500/80 dark:bg-orange-400", stroke: "stroke-orange-500 dark:stroke-orange-400" },
+      revenue: { bar: "bg-purple-500/80 dark:bg-purple-400", stroke: "stroke-purple-500 dark:stroke-purple-400" },
     };
 
     const values = data.map((x) => x[metricKey] ?? 0);
@@ -476,7 +476,7 @@ const CreatorDashboard = () => {
         <div className="h-64 rounded-xl bg-muted/30 border border-border dark-green-outline p-4 flex gap-6 items-center">
           <svg viewBox="0 0 240 184" className="w-60 h-44 shrink-0">
             {paths.map((p) => (
-              <path key={p.key} d={p.d} fill={p.fill} stroke="rgba(0,0,0,0.08)" />
+              <path key={p.key} d={p.d} fill={p.fill} className="stroke-border" strokeWidth={1} vectorEffect="non-scaling-stroke" />
             ))}
           </svg>
           <div className="flex-1 space-y-2 overflow-auto">
@@ -505,8 +505,8 @@ const CreatorDashboard = () => {
             const y = padTop + (idx * plotH) / yTicks;
             return (
               <g key={idx}>
-                <line x1={padLeft} x2={chartWidth - padRight} y1={y} y2={y} stroke="rgba(0,0,0,0.08)" strokeWidth="1" />
-                <text x={padLeft - 10} y={y + 4} textAnchor="end" fontSize="12" fill="rgba(0,0,0,0.55)">
+                <line x1={padLeft} x2={chartWidth - padRight} y1={y} y2={y} className="stroke-border/70" strokeWidth={1} />
+                <text x={padLeft - 10} y={y + 4} textAnchor="end" fontSize="12" className="fill-muted-foreground">
                   {formatMetricValue(metricKey, tv)}
                 </text>
               </g>
@@ -521,7 +521,7 @@ const CreatorDashboard = () => {
               y={padTop + plotH + 22}
               textAnchor="middle"
               fontSize="12"
-              fill="rgba(0,0,0,0.55)"
+              className="fill-muted-foreground"
             >
               {d.month}
             </text>
@@ -553,7 +553,14 @@ const CreatorDashboard = () => {
             <>
               <polyline fill="none" strokeWidth="3" className={metricColorMap[metricKey].stroke} points={linePoints} />
               {values.map((v, i) => (
-                <circle key={i} cx={xFor(i)} cy={yFor(v)} r="4.5" fill="white" strokeWidth="3" className={metricColorMap[metricKey].stroke} />
+                <circle
+                  key={i}
+                  cx={xFor(i)}
+                  cy={yFor(v)}
+                  r="4.5"
+                  strokeWidth="3"
+                  className={`fill-background ${metricColorMap[metricKey].stroke}`}
+                />
               ))}
             </>
           )}

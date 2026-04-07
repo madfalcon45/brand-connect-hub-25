@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +41,23 @@ const categoryMap: Record<string, string> = {
 };
 
 const campaignCategories = ["Beauty", "Health", "Tech", "Fashion", "Food", "Sports", "Travel", "Home", "Education", "Finance", "Entertainment", "Automotive", "Pet Products", "All"];
+
+const BRAND_ANALYTICS_MONTHS = ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"];
+const BRAND_MONTH_WEIGHTS = [0.12, 0.13, 0.15, 0.18, 0.2, 0.22];
+
+type BrandAnalyticsMetricKey = "earnings" | "clicks" | "sales" | "revenue";
+type BrandGraphType = "bar" | "line" | "pie";
+
+type BrandGraphRow = { month: string; earnings: number; clicks: number; sales: number; revenue: number };
+
+const distributeBrandTotals = (t: { earnings: number; clicks: number; sales: number; revenue: number }): BrandGraphRow[] =>
+  BRAND_ANALYTICS_MONTHS.map((month, i) => ({
+    month,
+    earnings: Math.max(0, Math.round(t.earnings * BRAND_MONTH_WEIGHTS[i])),
+    clicks: Math.max(0, Math.round(t.clicks * BRAND_MONTH_WEIGHTS[i])),
+    sales: Math.max(0, Math.round(t.sales * BRAND_MONTH_WEIGHTS[i])),
+    revenue: Math.max(0, Math.round(t.revenue * BRAND_MONTH_WEIGHTS[i])),
+  }));
 
 type Campaign = {
   id: number;
@@ -138,6 +155,14 @@ const BrandDashboard = () => {
   const [attributeValue, setAttributeValue] = useState("");
   const [analyticsDetail, setAnalyticsDetail] = useState<string | null>(null);
   const [subscriptionDetail, setSubscriptionDetail] = useState(false);
+  const [brandSimulatedAnalytics, setBrandSimulatedAnalytics] = useState(false);
+  const [brandSimGraphData, setBrandSimGraphData] = useState<BrandGraphRow[]>([]);
+  const [brandSimEarnings, setBrandSimEarnings] = useState(0);
+  const [brandSimClicks, setBrandSimClicks] = useState(0);
+  const [brandSimSales, setBrandSimSales] = useState(0);
+  const [brandSimRevenue, setBrandSimRevenue] = useState(0);
+  const [brandAnalyticsMetric, setBrandAnalyticsMetric] = useState<BrandAnalyticsMetricKey>("earnings");
+  const [brandAnalyticsGraphType, setBrandAnalyticsGraphType] = useState<BrandGraphType>("bar");
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
   const [creatorSearch, setCreatorSearch] = useState("");
   const [showCreatorFilters, setShowCreatorFilters] = useState(false);
@@ -882,6 +907,229 @@ const BrandDashboard = () => {
   const cardClass = "p-5 rounded-2xl bg-card border border-border shadow-card dark-green-outline";
   const sectionCardClass = "bg-card border border-border rounded-2xl p-6 shadow-card dark-green-outline";
 
+  const getBrandTotalsFromCampaigns = () => {
+    let earnings = 0;
+    let clicks = 0;
+    let sales = 0;
+    for (const c of campaigns) {
+      for (const cr of c.activeCreators) {
+        earnings += cr.earnings;
+        clicks += cr.clicks;
+        sales += cr.sales;
+      }
+    }
+    const revenue = Math.round(sales * 38 + earnings * 2);
+    return { earnings, clicks, sales, revenue };
+  };
+
+  const brandGraphData = useMemo(() => {
+    if (brandSimulatedAnalytics && brandSimGraphData.length > 0) return brandSimGraphData;
+    return distributeBrandTotals(getBrandTotalsFromCampaigns());
+  }, [campaigns, brandSimulatedAnalytics, brandSimGraphData]);
+
+  const brandDisplayTotals = useMemo(() => {
+    if (brandSimulatedAnalytics) {
+      return {
+        earnings: brandSimEarnings,
+        clicks: brandSimClicks,
+        sales: brandSimSales,
+        revenue: brandSimRevenue,
+      };
+    }
+    return getBrandTotalsFromCampaigns();
+  }, [campaigns, brandSimulatedAnalytics, brandSimEarnings, brandSimClicks, brandSimSales, brandSimRevenue]);
+
+  const handleSimulateBrandAnalytics = () => {
+    const earnings = Math.floor(Math.random() * 8000 + 800);
+    const clicks = Math.floor(Math.random() * 12000 + 1200);
+    const sales = Math.floor(Math.random() * 240 + 24);
+    const revenue = Math.floor(Math.random() * 24000 + 2400);
+    setBrandSimEarnings(earnings);
+    setBrandSimClicks(clicks);
+    setBrandSimSales(sales);
+    setBrandSimRevenue(revenue);
+    setBrandSimulatedAnalytics(true);
+    const graphData = BRAND_ANALYTICS_MONTHS.map((month) => ({
+      month,
+      earnings: Math.floor(Math.random() * (earnings / 3)),
+      clicks: Math.floor(Math.random() * (clicks / 3)),
+      sales: Math.floor(Math.random() * Math.max(sales / 3, 1)),
+      revenue: Math.floor(Math.random() * (revenue / 3)),
+    }));
+    setBrandSimGraphData(graphData);
+  };
+
+  const formatBrandMetricValue = (metricKey: BrandAnalyticsMetricKey, v: number) => {
+    if (metricKey === "earnings" || metricKey === "revenue") return `$${Math.round(v).toLocaleString()}`;
+    return `${Math.round(v).toLocaleString()}`;
+  };
+
+  const niceMaxBrand = (max: number) => {
+    if (!isFinite(max) || max <= 0) return 1;
+    const pow = Math.pow(10, Math.floor(Math.log10(max)));
+    const n = max / pow;
+    const mult = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
+    return mult * pow;
+  };
+
+  const brandChartHasData = brandSimulatedAnalytics || campaigns.length > 0;
+
+  const renderBrandAnalyticsGraph = (metricKey: BrandAnalyticsMetricKey, data: BrandGraphRow[], graphType: BrandGraphType) => {
+    if (!brandChartHasData) {
+      return (
+        <div className="h-64 rounded-xl bg-muted/30 flex items-center justify-center border border-border dark-green-outline">
+          <div className="text-center">
+            <TrendingUp className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">Launch a campaign or use Simulate Analytics to see sample data</p>
+          </div>
+        </div>
+      );
+    }
+
+    const metricColorMap: Record<BrandAnalyticsMetricKey, { bar: string; stroke: string }> = {
+      earnings: { bar: "bg-primary/80 dark:bg-primary", stroke: "stroke-primary" },
+      clicks: { bar: "bg-blue-500/80 dark:bg-blue-400", stroke: "stroke-blue-500 dark:stroke-blue-400" },
+      sales: { bar: "bg-orange-500/80 dark:bg-orange-400", stroke: "stroke-orange-500 dark:stroke-orange-400" },
+      revenue: { bar: "bg-purple-500/80 dark:bg-purple-400", stroke: "stroke-purple-500 dark:stroke-purple-400" },
+    };
+
+    const values = data.map((x) => x[metricKey] ?? 0);
+    const maxVal = niceMaxBrand(Math.max(...values, 1));
+    const yTicks = 5;
+    const tickVals = Array.from({ length: yTicks + 1 }, (_, i) => (maxVal * (yTicks - i)) / yTicks);
+
+    const chartHeight = 208;
+    const chartWidth = 640;
+    const padLeft = 54;
+    const padRight = 18;
+    const padTop = 12;
+    const padBottom = 28;
+    const plotW = chartWidth - padLeft - padRight;
+    const plotH = chartHeight - padTop - padBottom;
+
+    const xFor = (i: number) => padLeft + (values.length === 1 ? plotW / 2 : (i * plotW) / (values.length - 1));
+    const yFor = (v: number) => padTop + (1 - v / maxVal) * plotH;
+
+    const linePoints = values.map((v, i) => `${xFor(i)},${yFor(v)}`).join(" ");
+
+    if (graphType === "pie") {
+      const total = values.reduce((s, v) => s + v, 0);
+      const segments = data.map((d, i) => {
+        const v = d[metricKey] ?? 0;
+        const label = d.month;
+        return { v, label, i, pct: total > 0 ? v / total : 0 };
+      });
+      const palette = ["#16a34a", "#3b82f6", "#a855f7", "#f97316", "#ef4444", "#14b8a6"];
+      let acc = 0;
+      const radius = 78;
+      const cx = 120;
+      const cy = 92;
+      const paths = segments.map((s, idx) => {
+        const start = acc * Math.PI * 2;
+        acc += s.pct;
+        const end = acc * Math.PI * 2;
+        const large = end - start > Math.PI ? 1 : 0;
+        const x1 = cx + radius * Math.cos(start - Math.PI / 2);
+        const y1 = cy + radius * Math.sin(start - Math.PI / 2);
+        const x2 = cx + radius * Math.cos(end - Math.PI / 2);
+        const y2 = cy + radius * Math.sin(end - Math.PI / 2);
+        const d = `M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${large} 1 ${x2} ${y2} Z`;
+        return { d, fill: palette[idx % palette.length], key: `${s.label}-${idx}` };
+      });
+
+      return (
+        <div className="h-64 rounded-xl bg-muted/30 border border-border dark-green-outline p-4 flex gap-6 items-center">
+          <svg viewBox="0 0 240 184" className="w-60 h-44 shrink-0">
+            {paths.map((p) => (
+              <path key={p.key} d={p.d} fill={p.fill} className="stroke-border" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+            ))}
+          </svg>
+          <div className="flex-1 space-y-2 overflow-auto">
+            {segments.map((s, idx) => (
+              <div key={s.label} className="flex items-center justify-between gap-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: palette[idx % palette.length] }} />
+                  <span className="text-foreground">{s.label}</span>
+                </div>
+                <div className="text-right">
+                  <div className="text-foreground font-medium">{formatBrandMetricValue(metricKey, s.v)}</div>
+                  <div className="text-xs text-muted-foreground">{Math.round((s.pct || 0) * 100)}%</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="h-64 rounded-xl bg-muted/30 border border-border dark-green-outline p-4">
+        <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-full">
+          {tickVals.map((tv, idx) => {
+            const y = padTop + (idx * plotH) / yTicks;
+            return (
+              <g key={idx}>
+                <line x1={padLeft} x2={chartWidth - padRight} y1={y} y2={y} className="stroke-border/70" strokeWidth={1} />
+                <text x={padLeft - 10} y={y + 4} textAnchor="end" fontSize="12" className="fill-muted-foreground">
+                  {formatBrandMetricValue(metricKey, tv)}
+                </text>
+              </g>
+            );
+          })}
+
+          {data.map((d, i) => (
+            <text
+              key={d.month}
+              x={xFor(i)}
+              y={padTop + plotH + 22}
+              textAnchor="middle"
+              fontSize="12"
+              className="fill-muted-foreground"
+            >
+              {d.month}
+            </text>
+          ))}
+
+          {graphType === "bar" &&
+            data.map((d, i) => {
+              const v = d[metricKey] ?? 0;
+              const x = xFor(i);
+              const barW = Math.max(10, plotW / Math.max(values.length * 2.2, 1));
+              const y = yFor(v);
+              const h = padTop + plotH - y;
+              return (
+                <rect
+                  key={d.month}
+                  x={x - barW / 2}
+                  y={y}
+                  width={barW}
+                  height={Math.max(2, h)}
+                  rx="6"
+                  className={metricColorMap[metricKey].bar}
+                />
+              );
+            })}
+
+          {graphType === "line" && (
+            <>
+              <polyline fill="none" strokeWidth="3" className={metricColorMap[metricKey].stroke} points={linePoints} />
+              {values.map((v, i) => (
+                <circle
+                  key={i}
+                  cx={xFor(i)}
+                  cy={yFor(v)}
+                  r="4.5"
+                  strokeWidth="3"
+                  className={`fill-background ${metricColorMap[metricKey].stroke}`}
+                />
+              ))}
+            </>
+          )}
+        </svg>
+      </div>
+    );
+  };
+
   const creatorViewCampaigns: CreatorViewCampaign[] = [
     ...activeCampaigns.map((c) => {
       const hasImages = !!(c.images && c.images.length > 0);
@@ -1387,10 +1635,16 @@ const BrandDashboard = () => {
               {[
                 { label: "Active Campaigns", value: String(campaigns.filter((c) => c.status === "active").length), icon: Package, key: "campaigns" },
                 { label: "Total Creators", value: String(campaigns.reduce((s, c) => s + c.activeCreators.length, 0)), icon: Users, key: "creators" },
-                { label: "Revenue", value: "$0", icon: DollarSign, key: "revenue" },
-                { label: "Spent on Creators", value: "$0", icon: TrendingUp, key: "spent" },
+                { label: "Revenue", value: `$${brandDisplayTotals.revenue.toLocaleString()}`, icon: DollarSign, key: "revenue" },
+                { label: "Spent on Creators", value: `$${brandDisplayTotals.earnings.toLocaleString()}`, icon: TrendingUp, key: "spent" },
               ].map((stat) => (
-                <div key={stat.label} className={cardClass + " cursor-pointer hover:shadow-card-hover transition-shadow"} onClick={() => { setTab("analytics"); setAnalyticsDetail(stat.key); }}>
+                <div key={stat.label} className={cardClass + " cursor-pointer hover:shadow-card-hover transition-shadow"} onClick={() => {
+                  setTab("analytics");
+                  setAnalyticsDetail(stat.key);
+                  if (stat.key === "revenue") setBrandAnalyticsMetric("revenue");
+                  else if (stat.key === "spent") setBrandAnalyticsMetric("earnings");
+                  else if (stat.key === "creators") setBrandAnalyticsMetric("earnings");
+                }}>
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
                       <stat.icon className="w-5 h-5 text-primary" />
@@ -2712,17 +2966,69 @@ const BrandDashboard = () => {
 
         {tab === "analytics" && !analyticsDetail && !subscriptionDetail && (
           <div className="space-y-6">
-            <h1 className="font-display text-3xl font-bold text-foreground">Analytics</h1>
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <h1 className="font-display text-3xl font-bold text-foreground">Analytics</h1>
+              <Button variant="outline" onClick={handleSimulateBrandAnalytics}>
+                <BarChart3 className="w-4 h-4 mr-2" /> Simulate Analytics
+              </Button>
+            </div>
+            <div className={sectionCardClass + " space-y-4"}>
+              <div className="flex flex-wrap gap-3 items-end justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Performance Graph</p>
+                  <p className="text-xs text-muted-foreground">Choose a metric and graph type. Earnings reflects total paid to creators (their recorded earnings).</p>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Metric</p>
+                    <select
+                      className="rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                      value={brandAnalyticsMetric}
+                      onChange={(e) => setBrandAnalyticsMetric(e.target.value as BrandAnalyticsMetricKey)}
+                    >
+                      <option value="earnings">Earnings</option>
+                      <option value="clicks">Clicks</option>
+                      <option value="sales">Sales</option>
+                      <option value="revenue">Revenue</option>
+                    </select>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Graph Type</p>
+                    <select
+                      className="rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                      value={brandAnalyticsGraphType}
+                      onChange={(e) => setBrandAnalyticsGraphType(e.target.value as BrandGraphType)}
+                    >
+                      <option value="bar">Bar</option>
+                      <option value="line">Line</option>
+                      <option value="pie">Pie</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              {renderBrandAnalyticsGraph(brandAnalyticsMetric, brandGraphData, brandAnalyticsGraphType)}
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
-                { label: "Total Revenue", value: "$0", key: "revenue" },
-                { label: "Spent on Creators", value: "$0", key: "spent" },
+                { label: "Total Revenue", value: `$${brandDisplayTotals.revenue.toLocaleString()}`, key: "revenue" },
+                { label: "Spent on Creators", value: `$${brandDisplayTotals.earnings.toLocaleString()}`, key: "spent" },
                 { label: "Active Campaigns", value: String(campaigns.filter((c) => c.status === "active").length), key: "campaigns" },
                 { label: "Total Creators", value: String(campaigns.reduce((s, c) => s + c.activeCreators.length, 0)), key: "creators" },
+                { label: "Total Clicks", value: brandDisplayTotals.clicks.toLocaleString(), key: "clicks" },
+                { label: "Total Sales", value: String(brandDisplayTotals.sales), key: "sales" },
                 { label: "Subscription", value: plan === "pro" ? "Pro ($49/mo)" : "Basic (Free)", key: "subscription" },
               ].map((s) => (
                 <div key={s.label} className={cardClass + " cursor-pointer hover:shadow-card-hover transition-shadow"} onClick={() => {
-                  if (s.key === "subscription") { setSubscriptionDetail(true); } else { setAnalyticsDetail(s.key); }
+                  if (s.key === "subscription") {
+                    setSubscriptionDetail(true);
+                  } else {
+                    setAnalyticsDetail(s.key);
+                    if (s.key === "revenue") setBrandAnalyticsMetric("revenue");
+                    else if (s.key === "spent") setBrandAnalyticsMetric("earnings");
+                    else if (s.key === "clicks") setBrandAnalyticsMetric("clicks");
+                    else if (s.key === "sales") setBrandAnalyticsMetric("sales");
+                    else if (s.key === "creators") setBrandAnalyticsMetric("earnings");
+                  }
                 }}>
                   <p className="text-sm text-muted-foreground">{s.label}</p>
                   <p className="font-display text-2xl font-bold text-foreground">{s.value}</p>
@@ -2741,38 +3047,46 @@ const BrandDashboard = () => {
               {analyticsDetail === "spent" && "Creator Spending Breakdown"}
               {analyticsDetail === "campaigns" && "Campaign Details"}
               {analyticsDetail === "creators" && "Creator Details"}
+              {analyticsDetail === "clicks" && "Clicks Breakdown"}
+              {analyticsDetail === "sales" && "Sales Breakdown"}
             </h1>
 
-            {/* Graph for this metric */}
             {analyticsDetail !== "campaigns" && (
               <div className={sectionCardClass + " space-y-4"}>
-                <h2 className="font-display text-lg font-semibold text-foreground">
-                  {analyticsDetail === "revenue" ? "Revenue" : analyticsDetail === "spent" ? "Spending" : "Creators"} Over Time
-                </h2>
-                {campaigns.length === 0 ? (
-                  <div className="h-48 rounded-xl bg-muted/30 flex items-center justify-center border border-border dark-green-outline">
-                    <p className="text-sm text-muted-foreground">Launch campaigns to see analytics data</p>
+                <div className="flex flex-wrap gap-3 items-end justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Performance Graph</p>
+                    <p className="text-xs text-muted-foreground">Same metrics and chart types as the main Analytics page.</p>
                   </div>
-                ) : (
-                  <div className="h-48 rounded-xl bg-muted/30 border border-border dark-green-outline p-4 flex items-end gap-1">
-                    {["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"].map((month, i) => {
-                      const val = analyticsDetail === "spent"
-                        ? campaigns.reduce((s, c) => s + c.activeCreators.reduce((ss, cr) => ss + cr.earnings, 0), 0) * (0.3 + Math.random() * 0.7) / 6
-                        : analyticsDetail === "creators"
-                        ? campaigns.reduce((s, c) => s + c.activeCreators.length, 0) * (0.3 + Math.random() * 0.7) / 6
-                        : 0;
-                      const maxVal = Math.max(val * 2, 1);
-                      return (
-                        <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                          <div className="flex gap-0.5 items-end h-32 w-full justify-center">
-                            <div className="flex-1 bg-primary/70 rounded-t" style={{ height: `${Math.max((val / maxVal) * 100, 8)}%` }} />
-                          </div>
-                          <span className="text-xs text-muted-foreground">{month}</span>
-                        </div>
-                      );
-                    })}
+                  <div className="flex gap-2 flex-wrap">
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Metric</p>
+                      <select
+                        className="rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                        value={brandAnalyticsMetric}
+                        onChange={(e) => setBrandAnalyticsMetric(e.target.value as BrandAnalyticsMetricKey)}
+                      >
+                        <option value="earnings">Earnings</option>
+                        <option value="clicks">Clicks</option>
+                        <option value="sales">Sales</option>
+                        <option value="revenue">Revenue</option>
+                      </select>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Graph Type</p>
+                      <select
+                        className="rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                        value={brandAnalyticsGraphType}
+                        onChange={(e) => setBrandAnalyticsGraphType(e.target.value as BrandGraphType)}
+                      >
+                        <option value="bar">Bar</option>
+                        <option value="line">Line</option>
+                        <option value="pie">Pie</option>
+                      </select>
+                    </div>
                   </div>
-                )}
+                </div>
+                {renderBrandAnalyticsGraph(brandAnalyticsMetric, brandGraphData, brandAnalyticsGraphType)}
               </div>
             )}
 
@@ -2782,20 +3096,28 @@ const BrandDashboard = () => {
                 <p className="text-center text-muted-foreground py-8">No data yet. Launch campaigns to see analytics.</p>
               ) : (
                 <div className="space-y-3">
-                  {campaigns.map((c) => (
+                  {campaigns.map((c) => {
+                    const campEarnings = c.activeCreators.reduce((s, cr) => s + cr.earnings, 0);
+                    const campClicks = c.activeCreators.reduce((s, cr) => s + cr.clicks, 0);
+                    const campSales = c.activeCreators.reduce((s, cr) => s + cr.sales, 0);
+                    const campRevenue = c.activeCreators.reduce((s, cr) => s + Math.round(cr.sales * 38 + cr.earnings * 2), 0);
+                    return (
                     <div key={c.id} className="flex items-center justify-between p-4 rounded-xl border border-border dark-green-outline">
                       <div>
                         <p className="font-semibold text-foreground">{c.name}</p>
                         <p className="text-xs text-muted-foreground">{c.category} · {c.activeCreators.length} creators</p>
                       </div>
                       <div className="text-right">
-                        {analyticsDetail === "revenue" && <p className="font-display font-bold text-primary">$0</p>}
-                        {analyticsDetail === "spent" && <p className="font-display font-bold text-foreground">${c.activeCreators.reduce((s, cr) => s + cr.earnings, 0)}</p>}
+                        {analyticsDetail === "revenue" && <p className="font-display font-bold text-primary">${campRevenue.toLocaleString()}</p>}
+                        {analyticsDetail === "spent" && <p className="font-display font-bold text-foreground">${campEarnings.toLocaleString()}</p>}
                         {analyticsDetail === "campaigns" && <Badge variant={c.status === "active" ? "default" : "secondary"}>{c.status}</Badge>}
                         {analyticsDetail === "creators" && <p className="font-display font-bold text-foreground">{c.activeCreators.length}</p>}
+                        {analyticsDetail === "clicks" && <p className="font-display font-bold text-foreground">{campClicks.toLocaleString()}</p>}
+                        {analyticsDetail === "sales" && <p className="font-display font-bold text-foreground">{campSales}</p>}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
