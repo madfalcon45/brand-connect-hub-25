@@ -1967,8 +1967,7 @@ const BrandDashboard = () => {
               <div className={sectionCardClass}>
                 <h2 className="font-display text-lg font-semibold text-foreground mb-4">Active Creators ({campaign.activeCreators.length})</h2>
                 {campaign.activeCreators.length === 0 ? (
-                  <div className="py-6 text-center space-y-4">
-                    <p className="text-muted-foreground text-sm">No creators yet.</p>
+                  <div className="space-y-3">
                     <Button
                       variant="hero"
                       onClick={() => {
@@ -1982,6 +1981,7 @@ const BrandDashboard = () => {
                     >
                       <Send className="w-4 h-4 mr-2" /> Invite creators
                     </Button>
+                    <p className="text-sm text-muted-foreground">No creators yet. Open Creators to browse and invite people to this campaign.</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
