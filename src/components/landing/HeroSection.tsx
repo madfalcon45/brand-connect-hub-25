@@ -39,7 +39,7 @@ const HeroSection = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
-            AllCall makes it easy for brands to find and pay creators, and for creators to discover campaigns that match their audience. Track sales, manage affiliate links, and grow together.
+            BrandCamp makes it easy for brands to find and pay creators, and for creators to discover campaigns that match their audience. Track sales, manage affiliate links, and grow together.
           </motion.p>
 
           <motion.div

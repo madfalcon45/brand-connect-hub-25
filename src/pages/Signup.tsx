@@ -165,8 +165,8 @@ const Signup = () => {
             {step === 0 && (
               <div className="space-y-6">
                 <div className="text-center">
-                  <h1 className="font-display text-3xl font-bold text-foreground mb-2">Join AllCall</h1>
-                  <p className="text-muted-foreground">How would you like to use AllCall?</p>
+                  <h1 className="font-display text-3xl font-bold text-foreground mb-2">Join BrandCamp</h1>
+                  <p className="text-muted-foreground">How would you like to use BrandCamp?</p>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <button
@@ -413,7 +413,7 @@ const Signup = () => {
                   </Button>
                 </div>
                 {role === "creator" && (
-                  <p className="text-xs text-muted-foreground">10% of earnings go to AllCall. No upfront fees.</p>
+                  <p className="text-xs text-muted-foreground">10% of earnings go to BrandCamp. No upfront fees.</p>
                 )}
               </div>
             )}

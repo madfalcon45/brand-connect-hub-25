@@ -7,7 +7,8 @@ import {
   BarChart3, Users, DollarSign, Settings, LogOut, Search, Filter,
   Star, TrendingUp, Link2, ExternalLink, ClipboardCopy, FileText, Eye, Check,
   User, KeyRound, Moon, Sun, Crown, Info, Plus, CreditCard, MoreHorizontal,
-  ChevronLeft, ChevronRight, Upload, Video, XCircle, AlertCircle, X as XIcon, MapPin, Truck, Package, Globe, Image as ImageIcon
+  ChevronLeft, ChevronRight, Upload, Video, XCircle, AlertCircle, X as XIcon, MapPin, Truck, Package, Globe, Image as ImageIcon,
+  Tent
 } from "lucide-react";
 import {
   Tooltip,
@@ -600,7 +601,7 @@ const CreatorDashboard = () => {
   const dashboardFooter = (
     <footer className="mt-12 pt-6 border-t border-border">
       <div className="flex flex-wrap gap-6 justify-center text-sm text-muted-foreground">
-        <a href="https://allcall.carrd.co/" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors flex items-center gap-1"><ExternalLink className="w-3 h-3" /> AllCall Landing Page</a>
+        <a href="https://allcall.carrd.co/" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors flex items-center gap-1"><ExternalLink className="w-3 h-3" /> BrandCamp Landing Page</a>
         <a href="https://docs.google.com/forms/d/e/1FAIpQLSf4mmoWe2y9mcKaj-0i6C1tRDZZGBq_87YjUeOu5HHyjonxhw/viewform?usp=header" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors flex items-center gap-1"><ExternalLink className="w-3 h-3" /> Feedback Survey</a>
         <a href="https://docs.google.com/forms/d/e/1FAIpQLSeBZn0VKe1V23746Lby7U5zyqc1a9R7EZ7uyWLru-Z9jenFPQ/viewform?usp=header" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors flex items-center gap-1"><ExternalLink className="w-3 h-3" /> Join Waitlist / Early Access</a>
       </div>
@@ -779,9 +780,9 @@ const CreatorDashboard = () => {
       <aside className="w-64 bg-card border-r border-border p-4 flex flex-col shrink-0 sticky top-0 h-screen overflow-y-auto">
         <Link to="/" className="flex items-center gap-2 mb-8" onClick={() => document.documentElement.classList.remove("dark")}>
           <div className="w-8 h-8 rounded-lg bg-gradient-brand flex items-center justify-center">
-            <span className="text-primary-foreground font-display font-bold text-sm">A</span>
+            <Tent className="w-4 h-4 text-primary-foreground" />
           </div>
-          <span className="font-display font-bold text-foreground">AllCall</span>
+          <span className="font-display font-bold text-foreground">BrandCamp</span>
           <Badge variant="outline" className="ml-auto text-xs">Creator</Badge>
         </Link>
 
@@ -1530,7 +1531,7 @@ const CreatorDashboard = () => {
                 <div key={s.label} className={cardClass + " cursor-pointer hover:shadow-card-hover transition-shadow"} onClick={() => setAnalyticsDetail(s.key)}>
                   <p className="text-sm text-muted-foreground">{s.label}</p>
                   <p className="font-display text-2xl font-bold text-foreground">{s.value}</p>
-                  {s.key === "earnings" && <p className="text-xs text-muted-foreground mt-1">A 10% platform fee applies to all creator earnings to support AllCall's services and infrastructure.</p>}
+                  {s.key === "earnings" && <p className="text-xs text-muted-foreground mt-1">A 10% platform fee applies to all creator earnings to support BrandCamp's services and infrastructure.</p>}
                   <p className="text-xs text-primary mt-1">Click for details →</p>
                 </div>
               ))}

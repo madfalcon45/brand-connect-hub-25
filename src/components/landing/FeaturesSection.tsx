@@ -45,7 +45,7 @@ const FeaturesSection = () => {
             Everything you need to grow
           </h2>
           <p className="text-lg text-primary-foreground/80 max-w-2xl mx-auto">
-            From campaign creation to payment processing, AllCall handles the entire creator-brand workflow.
+            From campaign creation to payment processing, BrandCamp handles the entire creator-brand workflow.
           </p>
         </div>
 

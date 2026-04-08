@@ -87,7 +87,7 @@ const Pricing = () => (
 
         <div className="text-center mt-12">
           <p className="text-sm text-muted-foreground">
-            Creators don't pay sign-up fees. 10% of creator earnings go to AllCall.
+            Creators don't pay sign-up fees. 10% of creator earnings go to BrandCamp.
           </p>
         </div>
       </div>

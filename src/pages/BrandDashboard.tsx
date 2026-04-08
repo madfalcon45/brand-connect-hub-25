@@ -9,6 +9,7 @@ import {
   Package, Link2, MoreHorizontal, Star, Info, Moon, Sun, User, KeyRound, Crown, CreditCard,
   ChevronLeft, ChevronRight, Image as ImageIcon, AlertCircle, UserX, Ban, Upload, MapPin, Truck, Calendar, ExternalLink, History,
   Pencil, Trash2,
+  Tent,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
@@ -1432,7 +1433,7 @@ const BrandDashboard = () => {
   const dashboardFooter = (
     <footer className="mt-12 pt-6 border-t border-border">
       <div className="flex flex-wrap gap-6 justify-center text-sm text-muted-foreground">
-        <a href="https://allcall.carrd.co/" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors flex items-center gap-1"><ExternalLink className="w-3 h-3" /> AllCall Landing Page</a>
+        <a href="https://allcall.carrd.co/" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors flex items-center gap-1"><ExternalLink className="w-3 h-3" /> BrandCamp Landing Page</a>
         <a href="https://docs.google.com/forms/d/e/1FAIpQLSf4mmoWe2y9mcKaj-0i6C1tRDZZGBq_87YjUeOu5HHyjonxhw/viewform?usp=header" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors flex items-center gap-1"><ExternalLink className="w-3 h-3" /> Feedback Survey</a>
         <a href="https://docs.google.com/forms/d/e/1FAIpQLSeBZn0VKe1V23746Lby7U5zyqc1a9R7EZ7uyWLru-Z9jenFPQ/viewform?usp=header" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors flex items-center gap-1"><ExternalLink className="w-3 h-3" /> Join Waitlist / Early Access</a>
       </div>
@@ -1897,9 +1898,9 @@ const BrandDashboard = () => {
       <aside className="w-64 bg-card border-r border-border p-4 flex flex-col shrink-0 sticky top-0 h-screen overflow-y-auto">
         <Link to="/" className="flex items-center gap-2 mb-8" onClick={() => document.documentElement.classList.remove("dark")}>
           <div className="w-8 h-8 rounded-lg bg-gradient-brand flex items-center justify-center">
-            <span className="text-primary-foreground font-display font-bold text-sm">A</span>
+            <Tent className="w-4 h-4 text-primary-foreground" />
           </div>
-          <span className="font-display font-bold text-foreground">AllCall</span>
+          <span className="font-display font-bold text-foreground">BrandCamp</span>
           <Badge variant="outline" className="ml-auto text-xs">{plan === "pro" ? "Pro" : "Basic"}</Badge>
         </Link>
 

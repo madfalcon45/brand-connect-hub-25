@@ -44,7 +44,7 @@ const Tour = () => (
     <section className="pt-32 pb-24">
       <div className="container max-w-4xl">
         <div className="text-center mb-16">
-          <h1 className="font-display text-4xl md:text-6xl font-bold mb-4 text-primary-foreground">How AllCall Works</h1>
+          <h1 className="font-display text-4xl md:text-6xl font-bold mb-4 text-primary-foreground">How BrandCamp Works</h1>
           <p className="text-lg text-primary-foreground/80">A quick tour of the platform from both sides.</p>
         </div>
 

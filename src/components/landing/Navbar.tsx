@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Tent } from "lucide-react";
 import { useState } from "react";
 
 const Navbar = () => {
@@ -11,9 +11,9 @@ const Navbar = () => {
       <div className="container flex items-center justify-between h-16">
         <Link to="/" className="flex items-center gap-2" onClick={() => document.documentElement.classList.remove("dark")}>
           <div className="w-8 h-8 rounded-lg bg-gradient-brand flex items-center justify-center">
-            <span className="text-primary-foreground font-display font-bold text-sm">A</span>
+            <Tent className="w-4 h-4 text-primary-foreground" />
           </div>
-          <span className="font-display font-bold text-xl text-foreground">AllCall</span>
+          <span className="font-display font-bold text-xl text-foreground">BrandCamp</span>
         </Link>
 
         <div className="hidden md:flex items-center gap-6">
