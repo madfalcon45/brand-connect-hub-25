@@ -7,7 +7,8 @@ import {
   BarChart3, Plus, Users, DollarSign, Settings, Eye, LogOut, Search,
   Lock, TrendingUp, Filter, Send, Check, X as XIcon,
   Package, Link2, MoreHorizontal, Star, Info, Moon, Sun, User, KeyRound, Crown, CreditCard,
-  ChevronLeft, ChevronRight, Image as ImageIcon, AlertCircle, UserX, Ban, Upload, MapPin, Truck, Calendar, ExternalLink, History
+  ChevronLeft, ChevronRight, Image as ImageIcon, AlertCircle, UserX, Ban, Upload, MapPin, Truck, Calendar, ExternalLink, History,
+  Pencil, Trash2,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
@@ -117,6 +118,8 @@ type AttributionEntry = {
   type: "sales" | "clicks" | "dollars";
   amount: number;
   createdAt: string;
+  /** Only manual entries can be edited or removed; omit treated as manual */
+  source?: "manual";
 };
 
 type ShippedProduct = {
@@ -158,6 +161,8 @@ const BrandDashboard = () => {
   const [standaloneProfileReturnTab, setStandaloneProfileReturnTab] = useState<Tab | null>(null);
   const [withdrawInviteConfirm, setWithdrawInviteConfirm] = useState<{ name: string; campaignId: number } | null>(null);
   const [attributionHistory, setAttributionHistory] = useState<AttributionEntry[]>([]);
+  const [attributionRemoveConfirm, setAttributionRemoveConfirm] = useState<AttributionEntry | null>(null);
+  const [attributionEdit, setAttributionEdit] = useState<{ id: number; type: "sales" | "clicks" | "dollars"; amount: string } | null>(null);
   const [showCampaignAttributionHistory, setShowCampaignAttributionHistory] = useState(false);
   const [campaignGalleryLightbox, setCampaignGalleryLightbox] = useState<{ campaignId: number; imageIndex: number } | null>(null);
   const campaignGalleryTouchStart = useRef<number | null>(null);
@@ -873,12 +878,78 @@ const BrandDashboard = () => {
         type: attributeType,
         amount: delta,
         createdAt: new Date().toISOString(),
+        source: "manual",
       },
     ]);
 
     setAttributeError(false);
     setAttributeCreator("");
     setAttributeValue("");
+  };
+
+  const isManualAttribution = (e: AttributionEntry) => !e.source || e.source === "manual";
+
+  const applyCreatorAttributionDelta = (
+    cr: Campaign["activeCreators"][number],
+    type: "sales" | "clicks" | "dollars",
+    delta: number,
+    sign: 1 | -1,
+  ) => {
+    const d = sign * delta;
+    if (type === "clicks") return { ...cr, clicks: Math.max(0, cr.clicks + d) };
+    if (type === "sales") return { ...cr, sales: Math.max(0, cr.sales + d) };
+    return { ...cr, earnings: Math.max(0, cr.earnings + d) };
+  };
+
+  const removeAttributionEntry = (entry: AttributionEntry) => {
+    if (!isManualAttribution(entry)) return;
+    setCampaigns((prev) =>
+      prev.map((c) => {
+        if (c.id !== entry.campaignId) return c;
+        if (!c.activeCreators.some((cr) => cr.name === entry.creatorName)) return c;
+        return {
+          ...c,
+          activeCreators: c.activeCreators.map((cr) =>
+            cr.name !== entry.creatorName ? cr : applyCreatorAttributionDelta(cr, entry.type, entry.amount, -1),
+          ),
+        };
+      }),
+    );
+    setAttributionHistory((prev) => prev.filter((x) => x.id !== entry.id));
+  };
+
+  const saveAttributionEdit = () => {
+    if (!attributionEdit) return;
+    const entry = attributionHistory.find((x) => x.id === attributionEdit.id);
+    if (!entry || !isManualAttribution(entry)) return;
+    const camp = campaigns.find((c) => c.id === entry.campaignId);
+    if (!camp?.activeCreators.some((cr) => cr.name === entry.creatorName)) return;
+    const raw = attributionEdit.amount.trim();
+    const n = Number(raw);
+    if (!raw || !Number.isFinite(n) || n <= 0) return;
+    const rounded = attributionEdit.type === "dollars" ? Math.round(n * 100) / 100 : Math.round(n);
+
+    setCampaigns((prev) =>
+      prev.map((c) => {
+        if (c.id !== entry.campaignId) return c;
+        return {
+          ...c,
+          activeCreators: c.activeCreators.map((cr) => {
+            if (cr.name !== entry.creatorName) return cr;
+            let next = applyCreatorAttributionDelta(cr, entry.type, entry.amount, -1);
+            next = applyCreatorAttributionDelta(next, attributionEdit.type, rounded, 1);
+            return next;
+          }),
+        };
+      }),
+    );
+
+    setAttributionHistory((prev) =>
+      prev.map((x) =>
+        x.id === entry.id ? { ...x, type: attributionEdit.type, amount: rounded, source: "manual" as const } : x,
+      ),
+    );
+    setAttributionEdit(null);
   };
 
   const closeCreatorProfile = () => {
@@ -1613,13 +1684,19 @@ const BrandDashboard = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showCampaignAttributionHistory} onOpenChange={setShowCampaignAttributionHistory}>
+      <Dialog
+        open={showCampaignAttributionHistory}
+        onOpenChange={(open) => {
+          setShowCampaignAttributionHistory(open);
+          if (!open) setAttributionEdit(null);
+        }}
+      >
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-foreground">Attribution history</DialogTitle>
             <DialogDescription>
               Manual entries you added with Attribute Sales for{" "}
-              {selectedCampaignId ? (campaigns.find((c) => c.id === selectedCampaignId)?.name || "this campaign") : "this campaign"}.
+              {selectedCampaignId ? (campaigns.find((c) => c.id === selectedCampaignId)?.name || "this campaign") : "this campaign"}. You can edit or remove only these manual entries.
             </DialogDescription>
           </DialogHeader>
           {selectedCampaignId ? (() => {
@@ -1629,25 +1706,104 @@ const BrandDashboard = () => {
             }
             return (
               <ul className="space-y-2">
-                {rows.map((e) => (
-                  <li key={e.id} className="rounded-xl border border-border p-3 text-sm dark-green-outline">
-                    <button
-                      type="button"
-                      className="font-medium text-foreground hover:text-primary text-left"
-                      onClick={() => {
-                        setShowCampaignAttributionHistory(false);
-                        openCreatorStandaloneProfile(e.creatorName, tab);
-                      }}
-                    >
-                      {e.creatorName}
-                    </button>
-                    <p className="text-muted-foreground text-xs mt-1">
-                      {new Date(e.createdAt).toLocaleString()}
-                      {" · "}
-                      {e.type === "clicks" ? `+${e.amount} clicks` : e.type === "sales" ? `+${e.amount} sales` : `+$${e.amount} earned`}
-                    </p>
-                  </li>
-                ))}
+                {rows.map((e) => {
+                  const editable = isManualAttribution(e);
+                  const isEditing = attributionEdit?.id === e.id;
+                  return (
+                    <li key={e.id} className="rounded-xl border border-border p-3 text-sm dark-green-outline">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="flex-1 min-w-0 space-y-2">
+                          {isEditing ? (
+                            <>
+                              <div className="space-y-2">
+                                <label className="text-xs font-medium text-muted-foreground">Type</label>
+                                <select
+                                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                                  value={attributionEdit.type}
+                                  onChange={(ev) =>
+                                    setAttributionEdit((prev) =>
+                                      prev && prev.id === e.id ? { ...prev, type: ev.target.value as "sales" | "clicks" | "dollars" } : prev,
+                                    )
+                                  }
+                                >
+                                  <option value="sales">Sales</option>
+                                  <option value="clicks">Clicks</option>
+                                  <option value="dollars">Dollar amount ($)</option>
+                                </select>
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-xs font-medium text-muted-foreground">
+                                  {attributionEdit.type === "dollars" ? "Amount ($)" : "Count"}
+                                </label>
+                                <Input
+                                  type="number"
+                                  value={attributionEdit.amount}
+                                  onChange={(ev) =>
+                                    setAttributionEdit((prev) =>
+                                      prev && prev.id === e.id ? { ...prev, amount: ev.target.value } : prev,
+                                    )
+                                  }
+                                  min={0}
+                                  step={attributionEdit.type === "dollars" ? "0.01" : "1"}
+                                />
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                <Button type="button" size="sm" variant="hero" onClick={saveAttributionEdit}>
+                                  Save
+                                </Button>
+                                <Button type="button" size="sm" variant="outline" onClick={() => setAttributionEdit(null)}>
+                                  Cancel
+                                </Button>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                className="font-medium text-foreground hover:text-primary text-left"
+                                onClick={() => {
+                                  setShowCampaignAttributionHistory(false);
+                                  openCreatorStandaloneProfile(e.creatorName, tab);
+                                }}
+                              >
+                                {e.creatorName}
+                              </button>
+                              <p className="text-muted-foreground text-xs">
+                                {new Date(e.createdAt).toLocaleString()}
+                                {" · "}
+                                {e.type === "clicks" ? `+${e.amount} clicks` : e.type === "sales" ? `+${e.amount} sales` : `+$${e.amount} earned`}
+                              </p>
+                            </>
+                          )}
+                        </div>
+                        {editable && !isEditing && (
+                          <div className="flex gap-1 shrink-0 self-end sm:self-start">
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                              aria-label="Edit attribution"
+                              onClick={() => setAttributionEdit({ id: e.id, type: e.type, amount: String(e.amount) })}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              aria-label="Remove attribution"
+                              onClick={() => setAttributionRemoveConfirm(e)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             );
           })() : (
@@ -1655,6 +1811,39 @@ const BrandDashboard = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!attributionRemoveConfirm} onOpenChange={(open) => !open && setAttributionRemoveConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground">Remove this attribution?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {attributionRemoveConfirm && (
+                <>
+                  This removes the manual{" "}
+                  {attributionRemoveConfirm.type === "clicks"
+                    ? `${attributionRemoveConfirm.amount} clicks`
+                    : attributionRemoveConfirm.type === "sales"
+                      ? `${attributionRemoveConfirm.amount} sales`
+                      : `$${attributionRemoveConfirm.amount} earned`}{" "}
+                  for <span className="font-medium text-foreground">{attributionRemoveConfirm.creatorName}</span>. Creator totals on the campaign will be updated.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (attributionRemoveConfirm) removeAttributionEntry(attributionRemoveConfirm);
+                setAttributionRemoveConfirm(null);
+              }}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Simulate application dialog */}
       <Dialog open={showSimulate} onOpenChange={setShowSimulate}>
