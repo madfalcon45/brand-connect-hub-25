@@ -8,6 +8,7 @@ import {
   Star, TrendingUp, Link2, ExternalLink, ClipboardCopy, FileText, Eye, Check,
   User, KeyRound, Moon, Sun, Crown, Info, Plus, CreditCard, MoreHorizontal,
   ChevronLeft, ChevronRight, Upload, Video, XCircle, AlertCircle, X as XIcon, MapPin, Truck, Package, Globe, Image as ImageIcon,
+  Menu,
 } from "lucide-react";
 import brandcampLogo from "@/assets/BC Full Logo Transparent.png";
 import {
@@ -23,6 +24,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 type Tab = "feed" | "my-campaigns" | "master-link" | "portfolio" | "analytics" | "settings" | "shipping";
 
@@ -49,6 +51,7 @@ const CreatorDashboard = () => {
   const [productLightbox, setProductLightbox] = useState<{ campaignId: number; imageIndex: number } | null>(null);
   const lightboxTouchStartX = useRef<number | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [portfolioLinks, setPortfolioLinks] = useState<{ url: string; description: string }[]>([]);
   const [newPortfolioLink, setNewPortfolioLink] = useState("");
   const [newPortfolioDesc, setNewPortfolioDesc] = useState("");
@@ -285,6 +288,16 @@ const CreatorDashboard = () => {
   const handleLogout = () => {
     document.documentElement.classList.remove("dark");
     navigate("/");
+  };
+
+  const onSelectCreatorTab = (key: Tab) => {
+    setTab(key);
+    setSelectedCampaign(null);
+    setMenuOpenId(null);
+    setViewingBrand(null);
+    setAnalyticsDetail(null);
+    setSelectedMyCampaign(null);
+    setMobileNavOpen(false);
   };
 
   const handleSimulateAnalytics = () => {
@@ -608,8 +621,53 @@ const CreatorDashboard = () => {
     </footer>
   );
 
+  const creatorSidebarPanel = (
+    <>
+      <Link
+        to="/"
+        className="flex items-center gap-2 mb-8 w-full min-w-0"
+        onClick={() => {
+          document.documentElement.classList.remove("dark");
+          setMobileNavOpen(false);
+        }}
+      >
+        <span className="min-w-0 flex-1 flex items-center">
+          <img src={brandcampLogo} alt="BrandCamp" className="h-auto w-auto max-h-12 max-w-full" />
+        </span>
+        <Badge variant="outline" className="shrink-0 text-xs">Creator</Badge>
+      </Link>
+
+      <nav className="space-y-1 flex-1">
+        {sidebarItems.map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => onSelectCreatorTab(item.key)}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
+              tab === item.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"
+            }`}
+          >
+            <item.icon className="w-4 h-4" />
+            {item.label}
+          </button>
+        ))}
+      </nav>
+
+      <button
+        type="button"
+        onClick={() => {
+          setMobileNavOpen(false);
+          handleLogout();
+        }}
+        className="flex items-center gap-3 px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <LogOut className="w-4 h-4" /> Log out
+      </button>
+    </>
+  );
+
   return (
-    <div className="min-h-screen flex" style={{ background: darkMode ? 'hsl(150, 10%, 5%)' : 'linear-gradient(180deg, hsl(148, 50%, 84%) 0%, hsl(145, 35%, 88%) 40%, hsl(140, 20%, 93%) 100%)', backgroundAttachment: 'fixed' }}>
+    <div className="min-h-screen flex flex-col md:flex-row" style={{ background: darkMode ? 'hsl(150, 10%, 5%)' : 'linear-gradient(180deg, hsl(148, 50%, 84%) 0%, hsl(145, 35%, 88%) 40%, hsl(140, 20%, 93%) 100%)', backgroundAttachment: 'fixed' }}>
       {/* Withdraw confirmation */}
       {showWithdrawConfirm && (
         <div className="fixed inset-0 z-50 bg-foreground/50 flex items-center justify-center" onClick={() => setShowWithdrawConfirm(null)}>
@@ -777,35 +835,33 @@ const CreatorDashboard = () => {
         </DialogContent>
       </Dialog>
 
-      <aside className="w-64 bg-card border-r border-border p-4 flex flex-col shrink-0 sticky top-0 h-screen overflow-y-auto">
-        <Link to="/" className="flex items-center gap-2 mb-8 w-full min-w-0" onClick={() => document.documentElement.classList.remove("dark")}>
-          <span className="min-w-0 flex-1 flex items-center">
-            <img src={brandcampLogo} alt="BrandCamp" className="h-auto w-auto max-h-12 max-w-full" />
+      <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+        <SheetContent side="left" className="flex h-full w-[min(20rem,85vw)] max-w-[16rem] flex-col gap-0 border-border bg-card p-0 sm:max-w-[16rem]">
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">{creatorSidebarPanel}</div>
+        </SheetContent>
+      </Sheet>
+
+      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-card/95 px-3 backdrop-blur-md supports-[backdrop-filter]:bg-card/80 md:hidden">
+        <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => setMobileNavOpen(true)} aria-label="Open menu">
+          <Menu className="h-5 w-5" />
+        </Button>
+        <Link
+          to="/"
+          className="flex min-w-0 flex-1 items-center gap-2"
+          onClick={() => document.documentElement.classList.remove("dark")}
+        >
+          <span className="min-w-0 flex-1">
+            <img src={brandcampLogo} alt="BrandCamp" className="h-auto w-auto max-h-9 max-w-full object-left" />
           </span>
           <Badge variant="outline" className="shrink-0 text-xs">Creator</Badge>
         </Link>
+      </header>
 
-        <nav className="space-y-1 flex-1">
-          {sidebarItems.map((item) => (
-            <button
-              key={item.key}
-              onClick={() => { setTab(item.key); setSelectedCampaign(null); setMenuOpenId(null); setViewingBrand(null); setAnalyticsDetail(null); setSelectedMyCampaign(null); }}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
-                tab === item.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"
-              }`}
-            >
-              <item.icon className="w-4 h-4" />
-              {item.label}
-            </button>
-          ))}
-        </nav>
-
-        <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground">
-          <LogOut className="w-4 h-4" /> Log out
-        </button>
+      <aside className="hidden md:flex w-64 bg-card border-r border-border p-4 flex-col shrink-0 sticky top-0 h-screen overflow-y-auto">
+        {creatorSidebarPanel}
       </aside>
 
-      <main className="flex-1 p-8 overflow-y-auto">
+      <main className="flex-1 min-w-0 overflow-y-auto p-4 sm:p-6 md:p-8">
         {/* Brand profile view */}
         {tab === "feed" && viewingBrand && !selectedCampaign && (() => {
           const ba = brandAnalytics[viewingBrand] || { totalPaid: 0, campaigns: 0, creators: 0 };

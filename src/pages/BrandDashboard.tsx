@@ -9,6 +9,7 @@ import {
   Package, Link2, MoreHorizontal, Star, Info, Moon, Sun, User, KeyRound, Crown, CreditCard,
   ChevronLeft, ChevronRight, Image as ImageIcon, AlertCircle, UserX, Ban, Upload, MapPin, Truck, Calendar, ExternalLink, History,
   Pencil, Trash2,
+  Menu,
 } from "lucide-react";
 import brandcampLogo from "@/assets/BC Full Logo Transparent.png";
 import { motion } from "framer-motion";
@@ -24,6 +25,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -154,6 +156,7 @@ const BrandDashboard = () => {
   const [showLaunchPreview, setShowLaunchPreview] = useState(false);
   const [launchedCampaignName, setLaunchedCampaignName] = useState("");
   const [showProGate, setShowProGate] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [editingCampaignId, setEditingCampaignId] = useState<number | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
   const [selectedCreatorDetail, setSelectedCreatorDetail] = useState<string | null>(null);
@@ -801,6 +804,7 @@ const BrandDashboard = () => {
   };
 
   const handleSidebarClick = (key: Tab, isPro?: boolean) => {
+    setMobileNavOpen(false);
     if (isPro && plan !== "pro") {
       setShowProGate(true);
       return;
@@ -1440,8 +1444,54 @@ const BrandDashboard = () => {
     </footer>
   );
 
+  const brandSidebarPanel = (
+    <>
+      <Link
+        to="/"
+        className="flex items-center gap-2 mb-8 w-full min-w-0"
+        onClick={() => {
+          document.documentElement.classList.remove("dark");
+          setMobileNavOpen(false);
+        }}
+      >
+        <span className="min-w-0 flex-1 flex items-center">
+          <img src={brandcampLogo} alt="BrandCamp" className="h-auto w-auto max-h-12 max-w-full" />
+        </span>
+        <Badge variant="outline" className="shrink-0 text-xs">{plan === "pro" ? "Pro" : "Basic"}</Badge>
+      </Link>
+
+      <nav className="space-y-1 flex-1">
+        {sidebarItems.map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => handleSidebarClick(item.key, item.pro)}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
+              tab === item.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"
+            } ${item.pro && plan !== "pro" ? "opacity-50" : ""}`}
+          >
+            <item.icon className="w-4 h-4" />
+            {item.label}
+            {item.pro && plan !== "pro" && <Lock className="w-3 h-3 ml-auto" />}
+          </button>
+        ))}
+      </nav>
+
+      <button
+        type="button"
+        onClick={() => {
+          setMobileNavOpen(false);
+          handleLogout();
+        }}
+        className="flex items-center gap-3 px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <LogOut className="w-4 h-4" /> Log out
+      </button>
+    </>
+  );
+
   return (
-    <div className="min-h-screen flex" style={{ background: darkMode ? 'hsl(150, 10%, 5%)' : 'linear-gradient(180deg, hsl(148, 50%, 84%) 0%, hsl(145, 35%, 88%) 40%, hsl(140, 20%, 93%) 100%)', backgroundAttachment: 'fixed' }}>
+    <div className="min-h-screen flex flex-col md:flex-row" style={{ background: darkMode ? 'hsl(150, 10%, 5%)' : 'linear-gradient(180deg, hsl(148, 50%, 84%) 0%, hsl(145, 35%, 88%) 40%, hsl(140, 20%, 93%) 100%)', backgroundAttachment: 'fixed' }}>
       {/* Delete confirmation */}
       {showDeleteConfirm !== null && (
         <div className="fixed inset-0 z-50 bg-foreground/50 flex items-center justify-center" onClick={() => setShowDeleteConfirm(null)}>
@@ -1894,38 +1944,35 @@ const BrandDashboard = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Sidebar */}
-      <aside className="w-64 bg-card border-r border-border p-4 flex flex-col shrink-0 sticky top-0 h-screen overflow-y-auto">
-        <Link to="/" className="flex items-center gap-2 mb-8 w-full min-w-0" onClick={() => document.documentElement.classList.remove("dark")}>
-          <span className="min-w-0 flex-1 flex items-center">
-            <img src={brandcampLogo} alt="BrandCamp" className="h-auto w-auto max-h-12 max-w-full" />
+      {/* Sidebar: drawer on small screens, fixed column on md+ */}
+      <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+        <SheetContent side="left" className="flex h-full w-[min(20rem,85vw)] max-w-[16rem] flex-col gap-0 border-border bg-card p-0 sm:max-w-[16rem]">
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">{brandSidebarPanel}</div>
+        </SheetContent>
+      </Sheet>
+
+      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-card/95 px-3 backdrop-blur-md supports-[backdrop-filter]:bg-card/80 md:hidden">
+        <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => setMobileNavOpen(true)} aria-label="Open menu">
+          <Menu className="h-5 w-5" />
+        </Button>
+        <Link
+          to="/"
+          className="flex min-w-0 flex-1 items-center gap-2"
+          onClick={() => document.documentElement.classList.remove("dark")}
+        >
+          <span className="min-w-0 flex-1">
+            <img src={brandcampLogo} alt="BrandCamp" className="h-auto w-auto max-h-9 max-w-full object-left" />
           </span>
           <Badge variant="outline" className="shrink-0 text-xs">{plan === "pro" ? "Pro" : "Basic"}</Badge>
         </Link>
+      </header>
 
-        <nav className="space-y-1 flex-1">
-          {sidebarItems.map((item) => (
-            <button
-              key={item.key}
-              onClick={() => handleSidebarClick(item.key, item.pro)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
-                tab === item.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"
-              } ${item.pro && plan !== "pro" ? "opacity-50" : ""}`}
-            >
-              <item.icon className="w-4 h-4" />
-              {item.label}
-              {item.pro && plan !== "pro" && <Lock className="w-3 h-3 ml-auto" />}
-            </button>
-          ))}
-        </nav>
-
-        <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground">
-          <LogOut className="w-4 h-4" /> Log out
-        </button>
+      <aside className="hidden md:flex w-64 bg-card border-r border-border p-4 flex-col shrink-0 sticky top-0 h-screen overflow-y-auto">
+        {brandSidebarPanel}
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 p-8 overflow-y-auto">
+      <main className="flex-1 min-w-0 overflow-y-auto p-4 sm:p-6 md:p-8">
         {inviteConfirmation && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
