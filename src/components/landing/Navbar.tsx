@@ -9,7 +9,7 @@ const Navbar = () => {
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md border-b border-border" style={{ background: 'linear-gradient(to bottom, hsl(145, 40%, 92%), hsl(0, 0%, 100%, 0.9))' }}>
-      <div className="container flex items-center justify-between h-16">
+      <div className="flex h-16 w-full max-w-none items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <Link
           to="/"
           className="flex items-center shrink-0"
@@ -40,7 +40,7 @@ const Navbar = () => {
       </div>
 
       {open && (
-        <div className="md:hidden border-t border-border bg-background p-4 space-y-3">
+        <div className="md:hidden border-t border-border bg-background space-y-3 px-4 py-4 sm:px-6 lg:px-8">
           <Link to="/pricing" className="block text-sm text-muted-foreground" onClick={() => setOpen(false)}>Pricing</Link>
           <Link to="/tour" className="block text-sm text-muted-foreground" onClick={() => setOpen(false)}>How It Works</Link>
           <Link to="/brand/login" onClick={() => setOpen(false)}>
