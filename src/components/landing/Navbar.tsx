@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X, Tent } from "lucide-react";
 import { useState } from "react";
+import { Menu, X } from "lucide-react";
+import brandcampLogo from "@/assets/BC Full Logo Transparent.png";
 
 const Navbar = () => {
   const [open, setOpen] = useState(false);
@@ -9,11 +10,17 @@ const Navbar = () => {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md border-b border-border" style={{ background: 'linear-gradient(to bottom, hsl(145, 40%, 92%), hsl(0, 0%, 100%, 0.9))' }}>
       <div className="container flex items-center justify-between h-16">
-        <Link to="/" className="flex items-center gap-2" onClick={() => document.documentElement.classList.remove("dark")}>
-          <div className="w-8 h-8 rounded-lg bg-gradient-brand flex items-center justify-center">
-            <Tent className="w-4 h-4 text-primary-foreground" />
-          </div>
-          <span className="font-display font-bold text-xl text-foreground">BrandCamp</span>
+        <Link
+          to="/"
+          className="flex items-center shrink-0"
+          onClick={() => document.documentElement.classList.remove("dark")}
+          aria-label="BrandCamp"
+        >
+          <img
+            src={brandcampLogo}
+            alt="BrandCamp"
+            className="h-auto w-auto max-h-12 max-w-full"
+          />
         </Link>
 
         <div className="hidden md:flex items-center gap-6">

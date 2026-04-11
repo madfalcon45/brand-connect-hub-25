@@ -9,8 +9,8 @@ import {
   Package, Link2, MoreHorizontal, Star, Info, Moon, Sun, User, KeyRound, Crown, CreditCard,
   ChevronLeft, ChevronRight, Image as ImageIcon, AlertCircle, UserX, Ban, Upload, MapPin, Truck, Calendar, ExternalLink, History,
   Pencil, Trash2,
-  Tent,
 } from "lucide-react";
+import brandcampLogo from "@/assets/BC Full Logo Transparent.png";
 import { motion } from "framer-motion";
 import {
   Tooltip,
@@ -1896,12 +1896,11 @@ const BrandDashboard = () => {
 
       {/* Sidebar */}
       <aside className="w-64 bg-card border-r border-border p-4 flex flex-col shrink-0 sticky top-0 h-screen overflow-y-auto">
-        <Link to="/" className="flex items-center gap-2 mb-8" onClick={() => document.documentElement.classList.remove("dark")}>
-          <div className="w-8 h-8 rounded-lg bg-gradient-brand flex items-center justify-center">
-            <Tent className="w-4 h-4 text-primary-foreground" />
-          </div>
-          <span className="font-display font-bold text-foreground">BrandCamp</span>
-          <Badge variant="outline" className="ml-auto text-xs">{plan === "pro" ? "Pro" : "Basic"}</Badge>
+        <Link to="/" className="flex items-center gap-2 mb-8 w-full min-w-0" onClick={() => document.documentElement.classList.remove("dark")}>
+          <span className="min-w-0 flex-1 flex items-center">
+            <img src={brandcampLogo} alt="BrandCamp" className="h-auto w-auto max-h-12 max-w-full" />
+          </span>
+          <Badge variant="outline" className="shrink-0 text-xs">{plan === "pro" ? "Pro" : "Basic"}</Badge>
         </Link>
 
         <nav className="space-y-1 flex-1">

@@ -8,8 +8,8 @@ import {
   Star, TrendingUp, Link2, ExternalLink, ClipboardCopy, FileText, Eye, Check,
   User, KeyRound, Moon, Sun, Crown, Info, Plus, CreditCard, MoreHorizontal,
   ChevronLeft, ChevronRight, Upload, Video, XCircle, AlertCircle, X as XIcon, MapPin, Truck, Package, Globe, Image as ImageIcon,
-  Tent
 } from "lucide-react";
+import brandcampLogo from "@/assets/BC Full Logo Transparent.png";
 import {
   Tooltip,
   TooltipContent,
@@ -778,12 +778,11 @@ const CreatorDashboard = () => {
       </Dialog>
 
       <aside className="w-64 bg-card border-r border-border p-4 flex flex-col shrink-0 sticky top-0 h-screen overflow-y-auto">
-        <Link to="/" className="flex items-center gap-2 mb-8" onClick={() => document.documentElement.classList.remove("dark")}>
-          <div className="w-8 h-8 rounded-lg bg-gradient-brand flex items-center justify-center">
-            <Tent className="w-4 h-4 text-primary-foreground" />
-          </div>
-          <span className="font-display font-bold text-foreground">BrandCamp</span>
-          <Badge variant="outline" className="ml-auto text-xs">Creator</Badge>
+        <Link to="/" className="flex items-center gap-2 mb-8 w-full min-w-0" onClick={() => document.documentElement.classList.remove("dark")}>
+          <span className="min-w-0 flex-1 flex items-center">
+            <img src={brandcampLogo} alt="BrandCamp" className="h-auto w-auto max-h-12 max-w-full" />
+          </span>
+          <Badge variant="outline" className="shrink-0 text-xs">Creator</Badge>
         </Link>
 
         <nav className="space-y-1 flex-1">
