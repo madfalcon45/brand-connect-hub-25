@@ -160,7 +160,7 @@ const BrandDashboard = () => {
   const [editingCampaignId, setEditingCampaignId] = useState<number | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
   const [selectedCreatorDetail, setSelectedCreatorDetail] = useState<string | null>(null);
-  const [creatorListTab, setCreatorListTab] = useState<"all" | "my" | "invited" | "applications">("all");
+  const [creatorListTab, setCreatorListTab] = useState<"all" | "my" | "applications">("all");
   const [creatorDetailContext, setCreatorDetailContext] = useState<"creators-list" | "campaign" | "standalone" | null>(null);
   const [standaloneProfileReturnTab, setStandaloneProfileReturnTab] = useState<Tab | null>(null);
   const [withdrawInviteConfirm, setWithdrawInviteConfirm] = useState<{ name: string; campaignId: number } | null>(null);
@@ -677,7 +677,7 @@ const BrandDashboard = () => {
     return (
       <div>
         <h3 className="font-display font-semibold text-foreground mb-2">Invited creators</h3>
-        <p className="text-xs text-muted-foreground mb-3">Campaigns you invited this creator to (same as your Invited Creators tab).</p>
+        <p className="text-xs text-muted-foreground mb-3">Campaigns you invited this creator to (same as under My Creators → Invited).</p>
         <div className="space-y-2">
           {rows.map((ic) => {
             const camp = campaigns.find((x) => x.id === ic.campaignId);
@@ -2639,7 +2639,6 @@ const BrandDashboard = () => {
             <div className="flex gap-2 mb-4 flex-wrap">
               <button type="button" onClick={() => { setCreatorListTab("all"); setSelectedCreatorDetail(null); setCreatorDetailContext(null); setStandaloneProfileReturnTab(null); }} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "all" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>All Creators</button>
               <button type="button" onClick={() => { setCreatorListTab("my"); setSelectedCreatorDetail(null); setCreatorDetailContext(null); setStandaloneProfileReturnTab(null); }} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "my" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>My Creators</button>
-              <button type="button" onClick={() => { setCreatorListTab("invited"); setSelectedCreatorDetail(null); setCreatorDetailContext(null); setStandaloneProfileReturnTab(null); }} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "invited" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>Invited Creators</button>
               <button type="button" onClick={() => { setCreatorListTab("applications"); setSelectedCreatorDetail(null); setCreatorDetailContext(null); setStandaloneProfileReturnTab(null); }} className={`px-4 py-2 rounded-lg text-sm font-medium ${creatorListTab === "applications" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>Applications</button>
             </div>
 
@@ -2720,61 +2719,19 @@ const BrandDashboard = () => {
 
             <p className="text-sm text-muted-foreground">
               {creatorListTab === "all" && "AI-recommended creators based on your campaigns. Click a creator to see more details."}
-              {creatorListTab === "my" && "Creators actively working with you. Each row shows which of your campaigns they are in."}
-              {creatorListTab === "invited" && "Creators you invited to another campaign. Withdraw an invite if your plans change."}
+              {creatorListTab === "my" && "Active lists creators on your campaigns; Invited lists pending invitations. Use search to filter both. Withdraw an invite from an invited row if your plans change."}
             </p>
-
-            {creatorListTab === "invited" && (
-              <div className="space-y-4">
-                <div className="relative max-w-md">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input placeholder="Search by creator or campaign..." className="pl-10" value={creatorSearch} onChange={(e) => setCreatorSearch(e.target.value)} />
-                </div>
-                <div className="space-y-3">
-                {invitedCreators.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-12">No invitations yet. Use “Invite to another campaign” from a creator profile.</p>
-                ) : (
-                  (() => {
-                    const rows = invitedCreators.filter((ic) => !creatorSearch || ic.name.toLowerCase().includes(creatorSearch.toLowerCase()) || (campaigns.find((c) => c.id === ic.campaignId)?.name || "").toLowerCase().includes(creatorSearch.toLowerCase()));
-                    if (rows.length === 0) {
-                      return <p className="text-center text-muted-foreground py-8">No invitations match your search.</p>;
-                    }
-                    return rows.map((ic, i) => {
-                      const camp = campaigns.find((c) => c.id === ic.campaignId);
-                      const joinedThis = camp?.activeCreators.some((a) => a.name === ic.name);
-                      return (
-                        <div key={`${ic.name}-${ic.campaignId}-${i}`} className={cardClass + " flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"}>
-                          <div>
-                            <button
-                              type="button"
-                              className="font-semibold text-foreground hover:text-primary text-left"
-                              onClick={() => {
-                                setCreatorListTab("invited");
-                                openCreatorStandaloneProfile(ic.name, "creators");
-                              }}
-                            >
-                              {ic.name}
-                            </button>
-                            <p className="text-sm text-muted-foreground">Invited to: {camp?.name || "Campaign"}</p>
-                            {joinedThis && <Badge className="mt-1 bg-primary/10 text-primary border-0 text-xs">Joined this campaign</Badge>}
-                          </div>
-                          <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:bg-destructive/10 shrink-0" onClick={() => setWithdrawInviteConfirm({ name: ic.name, campaignId: ic.campaignId })}>
-                            Withdraw invite
-                          </Button>
-                        </div>
-                      );
-                    });
-                  })()
-                )}
-                </div>
-              </div>
-            )}
 
             {(creatorListTab === "all" || creatorListTab === "my") && (
             <div className="flex gap-3">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input placeholder="Search creators..." className="pl-10" value={creatorSearch} onChange={(e) => setCreatorSearch(e.target.value)} />
+                <Input
+                  placeholder={creatorListTab === "my" ? "Search creators or invitations…" : "Search creators…"}
+                  className="pl-10"
+                  value={creatorSearch}
+                  onChange={(e) => setCreatorSearch(e.target.value)}
+                />
               </div>
               <Button variant="outline" onClick={() => setShowCreatorFilters(!showCreatorFilters)}>
                 <Filter className="w-4 h-4 mr-2" /> Filter
@@ -2819,6 +2776,7 @@ const BrandDashboard = () => {
             )}
 
             {(creatorListTab === "all" || creatorListTab === "my") && (
+            <>
             <div className="space-y-3">
               {creatorListTab === "my" && <h3 className="font-display text-lg font-semibold text-foreground">Active</h3>}
               {filteredCreators.map((cr) => {
@@ -2864,6 +2822,49 @@ const BrandDashboard = () => {
                 <p className="text-center text-muted-foreground py-8">No creators match your filters.</p>
               )}
             </div>
+            {creatorListTab === "my" && (
+              <>
+                <h3 className="font-display text-lg font-semibold text-foreground mt-10">Invited</h3>
+                <div className="space-y-3">
+                  {invitedCreators.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">No invitations yet. Use “Invite to another campaign” from a creator profile.</p>
+                  ) : (
+                    (() => {
+                      const rows = invitedCreators.filter((ic) => !creatorSearch || ic.name.toLowerCase().includes(creatorSearch.toLowerCase()) || (campaigns.find((c) => c.id === ic.campaignId)?.name || "").toLowerCase().includes(creatorSearch.toLowerCase()));
+                      if (rows.length === 0) {
+                        return <p className="text-center text-muted-foreground py-8">No invitations match your search.</p>;
+                      }
+                      return rows.map((ic, i) => {
+                        const camp = campaigns.find((c) => c.id === ic.campaignId);
+                        const joinedThis = camp?.activeCreators.some((a) => a.name === ic.name);
+                        return (
+                          <div key={`${ic.name}-${ic.campaignId}-${i}`} className={cardClass + " flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"}>
+                            <div>
+                              <button
+                                type="button"
+                                className="font-semibold text-foreground hover:text-primary text-left"
+                                onClick={() => {
+                                  setCreatorListTab("my");
+                                  openCreatorStandaloneProfile(ic.name, "creators");
+                                }}
+                              >
+                                {ic.name}
+                              </button>
+                              <p className="text-sm text-muted-foreground">Invited to: {camp?.name || "Campaign"}</p>
+                              {joinedThis && <Badge className="mt-1 bg-primary/10 text-primary border-0 text-xs">Joined this campaign</Badge>}
+                            </div>
+                            <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:bg-destructive/10 shrink-0" onClick={() => setWithdrawInviteConfirm({ name: ic.name, campaignId: ic.campaignId })}>
+                              Withdraw invite
+                            </Button>
+                          </div>
+                        );
+                      });
+                    })()
+                  )}
+                </div>
+              </>
+            )}
+            </>
             )}
             </>
             )}
