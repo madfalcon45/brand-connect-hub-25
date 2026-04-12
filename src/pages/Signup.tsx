@@ -43,6 +43,8 @@ const Signup = () => {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const initialRole = params.get("role") as "brand" | "creator" | null;
+  const planParam = params.get("plan");
+  const initialPlan = planParam === "basic" || planParam === "pro" ? planParam : null;
 
   const [step, setStep] = useState(initialRole ? 1 : 0);
   const [role, setRole] = useState<"brand" | "creator" | null>(initialRole);
@@ -51,7 +53,7 @@ const Signup = () => {
   const [productType, setProductType] = useState<"physical" | "digital" | "">(""); 
   const [formData, setFormData] = useState({ name: "", email: "", password: "", companyName: "", country: "", address: "" });
   const [socials, setSocials] = useState([{ platform: "", url: "" }]);
-  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<string | null>(initialPlan);
   const [errors, setErrors] = useState<string[]>([]);
   const [brandLogo, setBrandLogo] = useState<string | null>(null);
 
